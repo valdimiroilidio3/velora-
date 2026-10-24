@@ -213,9 +213,31 @@ camada pura eram 279,8 kB **com 54 kB de `three` no inicial** — ver §6.13.
 
 ### 4.7 Execução em CI da Fase 3
 
-A preencher **depois** do `push` desta fase: run do workflow `CI` na branch `arena/5051ef25-velora`,
-com o resultado lido por `gh run list`. Não há linha aqui enquanto o run não existir — um portão
-sem execução não é um portão aprovado.
+| Item        | Valor                                                                                                                             |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Execução    | run **40121347982** · workflow `CI` · branch `arena/5051ef25-velora`                                                              |
+| Commit      | `17bf321` — `docs(fase3): ADR do motor 3D, protocolo manual de testes WebGL e evidência executada`                                |
+| Resultado   | **sucesso**, lido com `gh run list --branch arena/5051ef25-velora`                                                                |
+| URL         | https://github.com/valdimiroilidio3/velora-/actions/runs/40121347982                                                              |
+| O que cobre | os mesmos portões de §4.5 (`peers → typecheck → lint → format → test → build → budget`), executados fora desta máquina, em Ubuntu |
+| Limite      | o CI não tem GPU nem browser: QG-17, QG-18 e QG-19 continuam PENDENTES também lá                                                  |
+
+### 4.8 Fase 4 — o que já foi executado (realismo de materiais e de luz)
+
+A Fase 4 está **em curso**; esta linha existe para que o registo não espere pelo fim da fase.
+
+| Comando                                        | Resultado     | Medido                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run test`                                | **APROVADO**  | **36 ficheiros / 351 testes** (Fase 3: 30/300). Novos: superfícies procedurais (11), _presets_ de luz (7), matriz de acabamentos + `withMaterial` (10), histórico do editor (9), biblioteca de mapas (6), materiais+luz em `three` (8)                                 |
+| `pnpm run typecheck` / `lint` / `format:check` | **APROVADOS** | 0 erros e **0 avisos** no ESLint (dois avisos de variáveis não usadas que escrevi pelo caminho foram corrigidos, não ignorados)                                                                                                                                        |
+| `pnpm run build`                               | **APROVADO**  | 13 rotas, 0 erros                                                                                                                                                                                                                                                      |
+| `pnpm run budget`                              | **APROVADO**  | partilhado 129 kB/150, total 406,8 kB/520 em 21 _chunks_; `three` **135,1 kB** diferido, `partilhado=false`, `rotas-iniciais=nenhuma` — os mapas procedurais não acrescentaram um _byte_ ao _first-load_, porque são aritmética no _runtime_ do browser, não ficheiros |
+| `docs/FASE-4-REALISMO.md`                      | escrita       | diagnóstico inicial, decisões e o que fica por entregar                                                                                                                                                                                                                |
+
+O que **não** foi verificado nesta etapa: aspeto real das superfícies, coerência visual do _tiling_,
+reflexões do ambiente _IBL_, e o efeito dos _presets_ na leitura arquitetónica. Nada disso é
+verificável sem GPU — os casos `M1`–`M5` em `docs/MANUAL-3D-TESTS.md` são obrigatórios antes de
+qualquer afirmação sobre qualidade visual.
 
 ## 5. O que um PR tem de mostrar
 

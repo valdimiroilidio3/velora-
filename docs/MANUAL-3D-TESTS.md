@@ -92,3 +92,16 @@ por chave, logo as _calls_ devem crescer com o número de grupos, não com o de 
 O que o instrumento já mede e o que não mede: `PerformanceMonitor` dá fps (média móvel), ms,
 `calls`, triângulos, geometrias e _meshes_ por _frame_ real; **não** mede tempo até interatividade,
 nem memória de GPU, nem custo de _upload_ de textura — esses continuam manuais.
+
+## 7. Materiais, luz e ambiente (Fase 4)
+
+Gerados proceduralmente no browser — por isso nada disto pode ser confirmado em Node.
+
+| #   | Passo                                                          | Resultado esperado                                                                                                                                                                         | Resultado |
+| --- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| M1  | Aproximar a câmera de uma parede até ao mínimo permitido       | Vê-se variação de tom e relevo no betão/reboco; a emenda do _tile_ não é visível nem forma grelha; a inclinação do _tiling_ não muda entre painéis vizinhos                                |           |
+| M2  | Rodar o edifício com luz de meio-dia                           | Vidros e alumínios têm realce que **se move** com a câmera (reflexo do ambiente), fachadas mate não ganham brilho metálico                                                                 |           |
+| M3  | Alternar os quatro _presets_ de luz                            | Manhã e fim de tarde projetam sombras em direções **opostas**; o meio-dia tem o sol alto e sombras curtas; à noite o céu escurece, as sombras desaparecem e os vãos do rés-do-chão acendem |           |
+| M4  | Comparar qualidade `leve` ↔ `detalhada` no mesmo enquadramento | `leve` não tem mapas nem ambiente nem sombras; `detalhada` tem os três; a cena não fica _menos legível_ em nenhuma das duas                                                                |           |
+| M5  | Trocar o acabamento de um painel no painel de propriedades     | A mudança é imediata, sem reconstruir a cena nem perder a seleção; o _Anular_ repõe o acabamento anterior e o contador de edições sobe só 1                                                |           |
+| M6  | Medir custo real dos mapas                                     | Na linha de estado, `texturas` (via `renderer.info`) deve crescer com os 3 mapas por material usado e voltar à base ao mudar para `leve`                                                   |           |

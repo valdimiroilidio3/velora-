@@ -3,7 +3,8 @@
 **SaaS internacional para criar, apresentar e comercializar empreendimentos imobiliários** com
 geração assistida por IA, modelação BIM progressiva e experiências 3D interativas no navegador.
 
-> **Estado atual: Fase 3 concluída localmente — motor 3D e editor de modelo funcionais, com
+> **Estado atual: Fase 3 concluída localmente e Fase 4 em curso (realismo de materiais, luz e
+> ambiente) — motor 3D e editor de modelo funcionais, com
 > evidência executada.** Existem 8 rotas, 20 primitivas/componentes de UI, tokens, um motor de cena
 > (`src/three/**`) com seleção, gizmo e regras de edição, e dados de demonstração rotulados. **Não**
 > existe: persistência do modelo, autenticação real, multi-tenancy, importação de plantas, leitura ou
@@ -125,6 +126,14 @@ base de dados) — em `docs/QUALITY-GATES.md` §2 e §4.3.
 
 ## Estado real do que existe
 
+**Em curso na Fase 4** (diagnóstico, decisões e estado em `docs/FASE-4-REALISMO.md`; evidência em
+`docs/QUALITY-GATES.md` §4.8): superfícies procedurais (albedo, rugosidade e normais gerados por
+aritmética determinística, com escala física por acabamento), quatro _presets_ de luz que movem
+luzes reais, pré-filtram um céu ambiente e mudam exposição e brilhos noturnos, troca de acabamento por
+elemento com a recusa explicada pela regra, e `undo`/`redo` com histórico limitado e real. **Pendente**
+nessa fase: parametrização do edifício, contexto e vegetação com _instancing_, câmera ortográfica,
+persistência local, modo de apresentação — e tudo o que exige GPU para ser afirmado.
+
 **Implementado e executado na Fase 3** (evidência por portão em `docs/QUALITY-GATES.md` §4.5):
 
 - **Motor de cena** — `src/three/`: 11 módulos de domínio puro (documento tipado, unidades e
@@ -203,24 +212,25 @@ base de dados) — em `docs/QUALITY-GATES.md` §2 e §4.3.
 
 ## Índice de documentação
 
-| Documento                                            | Conteúdo                                                                                                                              |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/PRODUCT-SPEC.md`                               | visão, personas, jornadas, âmbito, restrições, critérios de sucesso, riscos                                                           |
-| `docs/ARCHITECTURE.md`                               | fronteiras e camadas, regra de dependência, configuração, erros/observabilidade, limites 3D/BIM, o que não antecipar                  |
-| `docs/DATA-MODEL.md`                                 | entidades conceptuais, relações, posse, matriz de acesso, estados, decisões abertas                                                   |
-| `docs/SECURITY.md`                                   | identidade/autorização, isolamento por tenant + RLS, segredos, entradas, uploads, rate limiting, auditoria, backups, privacidade      |
-| `docs/QUALITY-GATES.md`                              | portões QG-01…QG-21, ambiente, **resultados executados** (Fase 0 em §4, Fase 2 em §4.3), defeitos encontrados, limites da verificação |
-| `docs/DESIGN-SYSTEM.md`                              | tokens, contraste medido, tipografia, espaçamento, movimento, inventário de componentes, estados e acessibilidade                     |
-| `docs/ADR/0003-design-system.md`                     | tokens num único ficheiro, tema por `data-*`, densidade por multiplicador, tipografia de sistema                                      |
-| `docs/ADR/0004-camada-3d.md`                         | volumetria procedural, ciclo de vida WebGL, alternativa não-gráfica, o que fica travado                                               |
-| `docs/ARCHITECTURE.md` §8                            | tabela de camadas do motor 3D (`src/three/**`) e os limites aceites                                                                   |
-| `docs/ADR/0006-Editor 3D com three.js imperativo.md` | porque `three` imperativo e não R3F, quem é a fonte de verdade (documento, não cena) e como o bundle fica protegido                   |
-| `docs/ADR/0005-toolchain-fase-2.md`                  | ESLint 10 com allowlist de peers, orçamento de bundle, dois projetos de teste, `axe-core`                                             |
-| `docs/DEPENDENCIES.md`                               | por pacote: finalidade, justificação, alternativas, compatibilidade verificada, custo, risco                                          |
-| `docs/DEPLOYMENT.md`                                 | serviços, limites gratuitos, riscos de preço, ambientes, CI, checklist pós-deploy, backups                                            |
-| `docs/DEVELOPMENT-WORKFLOW.md`                       | ramos, commits, PRs, DoD, portões entre fases, convenções, release                                                                    |
-| `docs/ADR/0001-initial-architecture.md`              | decisão de arquitetura inicial, alternativas, consequências, verificação, decisões abertas                                            |
-| `docs/ADR/TEMPLATE.md`                               | formato para os ADR seguintes                                                                                                         |
+| Documento                                                   | Conteúdo                                                                                                                              |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/PRODUCT-SPEC.md`                                      | visão, personas, jornadas, âmbito, restrições, critérios de sucesso, riscos                                                           |
+| `docs/ARCHITECTURE.md`                                      | fronteiras e camadas, regra de dependência, configuração, erros/observabilidade, limites 3D/BIM, o que não antecipar                  |
+| `docs/DATA-MODEL.md`                                        | entidades conceptuais, relações, posse, matriz de acesso, estados, decisões abertas                                                   |
+| `docs/SECURITY.md`                                          | identidade/autorização, isolamento por tenant + RLS, segredos, entradas, uploads, rate limiting, auditoria, backups, privacidade      |
+| `docs/QUALITY-GATES.md`                                     | portões QG-01…QG-21, ambiente, **resultados executados** (Fase 0 em §4, Fase 2 em §4.3), defeitos encontrados, limites da verificação |
+| `docs/DESIGN-SYSTEM.md`                                     | tokens, contraste medido, tipografia, espaçamento, movimento, inventário de componentes, estados e acessibilidade                     |
+| `docs/ADR/0003-design-system.md`                            | tokens num único ficheiro, tema por `data-*`, densidade por multiplicador, tipografia de sistema                                      |
+| `docs/ADR/0004-camada-3d.md`                                | volumetria procedural, ciclo de vida WebGL, alternativa não-gráfica, o que fica travado                                               |
+| `docs/ARCHITECTURE.md` §8                                   | tabela de camadas do motor 3D (`src/three/**`) e os limites aceites                                                                   |
+| `docs/ADR/0007-Recursos-procedurais-em-vez-de-ficheiros.md` | porque nenhuma textura ou HDRI entra por URL: geração determinística, orçamento de memória declarado, alternativas recusadas          |
+| `docs/ADR/0006-Editor 3D com three.js imperativo.md`        | porque `three` imperativo e não R3F, quem é a fonte de verdade (documento, não cena) e como o bundle fica protegido                   |
+| `docs/ADR/0005-toolchain-fase-2.md`                         | ESLint 10 com allowlist de peers, orçamento de bundle, dois projetos de teste, `axe-core`                                             |
+| `docs/DEPENDENCIES.md`                                      | por pacote: finalidade, justificação, alternativas, compatibilidade verificada, custo, risco                                          |
+| `docs/DEPLOYMENT.md`                                        | serviços, limites gratuitos, riscos de preço, ambientes, CI, checklist pós-deploy, backups                                            |
+| `docs/DEVELOPMENT-WORKFLOW.md`                              | ramos, commits, PRs, DoD, portões entre fases, convenções, release                                                                    |
+| `docs/ADR/0001-initial-architecture.md`                     | decisão de arquitetura inicial, alternativas, consequências, verificação, decisões abertas                                            |
+| `docs/ADR/TEMPLATE.md`                                      | formato para os ADR seguintes                                                                                                         |
 
 ## Licença e dados
 
