@@ -58,8 +58,11 @@ jobs:
       - name: QG-10 · Política de build scripts de dependências
         run: pnpm permissions
 
-      - name: QG-09 · Consistência de peers
-        run: pnpm peers check
+      # Não usamos `pnpm peers check` cru: o ESLint 10 (única linha mantida) choca com tetes ^9
+      # declarados por plugins do eslint-config-next. O script aceita exceções nomeadas e falha se
+      # aparecer uma nova ou se uma existente deixar de corresponder a nada. Ver docs/DEPENDENCIES.md.
+      - name: QG-09 · Consistência de peers (com exceções nomeadas)
+        run: node scripts/check-peer-deps.mjs
 
       - name: QG-02 · Tipos
         run: pnpm run typecheck
@@ -75,6 +78,10 @@ jobs:
 
       - name: QG-06 · Build de produção
         run: pnpm run build
+
+      # Mede gzip real no output do build e exige que o `three` continue fora do first-load.
+      - name: QG-20 · Orçamento de bundle de cliente
+        run: node scripts/bundle-budget.mjs
 
       # Em CI não existem segredos de produção, portanto `/api/health` *deve* responder
       # 503 config_invalid (fail-fast do guardrail). Aceitamos 200 (config válida) ou 503;
@@ -121,7 +128,20 @@ jobs:
             echo "x-powered-by não deve ser exposto"
             exit 1
           fi
-          echo "smoke test + cabeçalhos verificados"
+          # Conteúdo: as rotas da Fase 2 respondem e mantêm a marcação de demonstração visível.
+          code_projects=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/app/projetos)
+          [ "$code_projects" = "200" ] || { echo "/app/projetos devolveu $code_projects"; exit 1; }
+          if ! curl -s http://127.0.0.1:3100/app/projetos | grep -q "DEMO-0"; then
+            echo "o catálogo servido não contém a marcação DEMO-0x dos dados de demonstração"
+            exit 1
+          fi
+          if ! curl -s http://127.0.0.1:3100/acesso | grep -qi "não é um login"; then
+            echo "/acesso não declara que a autenticação real ainda não existe"
+            exit 1
+          fi
+          code_404=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/rota-que-nao-existe)
+          [ "$code_404" = "404" ] || { echo "404 devolveu $code_404"; exit 1; }
+          echo "smoke test + cabeçalhos + rotas de conteúdo verificados"
 
       - name: QG-08 · Vulnerabilidades de dependências
         run: pnpm audit --audit-level=high

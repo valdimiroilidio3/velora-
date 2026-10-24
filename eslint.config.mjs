@@ -35,6 +35,14 @@ const eslintConfig = [
       "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports" }],
     },
   },
+  {
+    // Ferramentas de CLI (`scripts/**`) escrevem no terminal: é a saída do portão, não registo
+    // da aplicação. A restrição continua a aplicar-se a `src/**`, que é o que corre no browser.
+    files: ["scripts/**/*.mjs"],
+    rules: {
+      "no-console": "off",
+    },
+  },
 ];
 
 export default eslintConfig;

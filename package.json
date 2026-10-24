@@ -1,8 +1,8 @@
 {
   "name": "velora",
-  "version": "0.0.0-phase0",
+  "version": "0.2.0-fase2",
   "private": true,
-  "description": "VELORA — fundação técnica (Fase 0). Base mínima reproduzível: Next.js App Router, TypeScript estrito, ESLint, Vitest.",
+  "description": "VELORA — Fase 0 (fundação reproduzível) + Fase 2 (aplicação-base, design system, catálogo de demonstração e cena WebGL). Next.js App Router, TypeScript estrito, Tailwind sobre tokens próprios, Vitest.",
   "license": "UNLICENSED",
   "packageManager": "pnpm@12.15.0",
   "engines": {
@@ -20,20 +20,34 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "audit": "pnpm audit --audit-level=high",
-    "verify": "pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build"
+    "peers": "node scripts/check-peer-deps.mjs",
+    "budget": "node scripts/bundle-budget.mjs",
+    "test:a11y": "vitest run --project dom",
+    "verify": "pnpm run peers && pnpm run typecheck && pnpm run lint && pnpm run format:check && pnpm run test && pnpm run build && pnpm run budget"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "clsx": "2.1.1",
+    "lucide-react": "1.61.0",
     "next": "16.4.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",
+    "tailwindcss": "4.3.3",
+    "three": "0.186.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@testing-library/dom": "10.4.1",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
     "@types/node": "22.20.5",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "eslint": "9.39.5",
+    "@types/three": "0.186.0",
+    "axe-core": "4.14.0",
+    "eslint": "10.13.0",
     "eslint-config-next": "16.4.3",
+    "jsdom": "30.1.3",
     "prettier": "3.9.10",
     "typescript": "5.9.3",
     "vitest": "5.0.5"
