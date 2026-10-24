@@ -1,0 +1,12 @@
+# Definições do pnpm (o pnpm 12 lê as configurações deste ficheiro, não de `package.json`).
+#
+# Política de supply-chain do VELORA — scripts de build de dependências:
+#   - Em pnpm 11+ `onlyBuiltDependencies`/`ignoredBuiltDependencies` foram substituídos por
+#     `allowBuilds` (verificados empiricamente: as chaves antigas são ignoradas em silêncio).
+#   - `allowBuilds: false` = recusa explícita e registada (não deixa aprovação pendente).
+#   - Adicionar uma exceção exige justificação revista em docs/DEPENDENCIES.md.
+allowBuilds:
+  # Usado apenas como resolvedor de imports do eslint-plugin-import-x. A instalação funciona
+  # sem o `postinstall` (os binários de plataforma chegam por optionalDependencies) e o
+  # `pnpm lint` foi executado com o script bloqueado — ver docs/QUALITY-GATES.md.
+  unrs-resolver: false

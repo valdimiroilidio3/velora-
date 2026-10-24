@@ -1,0 +1,50 @@
+# dependências
+/node_modules
+/.pnpm-store
+
+# build /Next.js
+/.next/
+/.next-dev/
+/out/
+/build/
+/next-env.d.ts
+*.tsbuildinfo
+
+# runtime
+/.nuxt/
+/.vercel/
+/.env
+/.env.*
+!/.env.example
+/.turbo/
+/coverage/
+/test-results/
+/playwright-report/
+/blob-report/
+.cache/
+.data/
+
+# dados locais (nunca commitizar bases de dados, uploads, modelos 3D, exports)
+/storage/
+/uploads/
+/db/*.sqlite*
+/docker/volumes/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+/playwright*.log
+
+# editores e SO
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# ferramentas auxiliares (varridas locais, nunca credenciais)
+.secrets/
+*.pem
+*.key
