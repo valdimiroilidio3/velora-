@@ -10,6 +10,9 @@ import {
   type TransformPatch,
 } from "@/three/model";
 import { buildRenderPlan, type RenderPlan } from "@/three/render-plan";
+import { withMaterial } from "@/three/model";
+import { LIGHTING_PRESET_IDS, type LightingPresetId } from "@/three/lighting-presets";
+import type { MaterialId } from "@/three/model";
 import type { ViewPreset } from "@/three/engine/camera-controller";
 import type { GizmoMode } from "@/three/engine/transform-gizmo";
 import type { DemoProject } from "@/demo/projects";
@@ -27,7 +30,15 @@ import type { DemoProject } from "@/demo/projects";
  *
  * Persistência: nenhuma. As edições vivem nesta página, nesta sessão. Não há `localStorage` nem
  * servidor por detrás disto — dizer o contrário seria fingir uma persistência que não existe.
+ *
+ * O histórico é **real e limitado**: `undo`/`redo` só existem porque cada escrita aplicável empurra o
+ * documento anterior para uma pilha. Não é um botão decorativo, e o teto (`HISTORY_LIMIT`) é
+ * declarado em vez de ser " infinita", porque 518 elementos × 80 documentos é memória que o
+ * separador do utilizador não tem de gastar.
  */
+
+/** Passos de histórico guardados por documento (≈ 40 × 518 elementos serializáveis). */
+export const HISTORY_LIMIT = 40;
 
 export type EditorTool = "selecionar" | GizmoMode;
 
@@ -55,7 +66,15 @@ export interface EditorState {
   readonly rejected: readonly string[];
   readonly edits: number;
   readonly viewCommand: { readonly command: ViewCommand; readonly nonce: number } | null;
+  /** *Preset* de iluminação do palco — estado de apresentação, não do documento. */
+  readonly lightingPreset: LightingPresetId;
+  readonly canUndo: boolean;
+  readonly canRedo: boolean;
+  readonly historyDepth: number;
 }
+
+/** O preset inicial vem do catálogo; `undefined` nunca é uma hipótese para a UI. */
+const DEFAULT_PRESET: LightingPresetId = LIGHTING_PRESET_IDS[1] ?? "meio-dia";
 
 export interface EditorStore {
   getState(): EditorState;
@@ -65,6 +84,11 @@ export interface EditorStore {
   setTool(tool: EditorTool): void;
   /** Única porta de escrita geométrica: passa sempre por `withTransform` (regras + *snapping*). */
   applyTransform(elementId: string, patch: TransformPatch): boolean;
+  /** Troca o acabamento de um elemento; a compatibilidade é decidida em `materials.ts`, não aqui. */
+  setMaterial(elementId: string, materialId: MaterialId): boolean;
+  setLightingPreset(preset: LightingPresetId): void;
+  undo(): boolean;
+  redo(): boolean;
   setElementVisibility(elementId: string, visible: boolean): void;
   setCategoryVisibility(category: ElementCategory, visible: boolean): void;
   requestView(command: ViewCommand): void;
@@ -86,11 +110,41 @@ export function createEditorStore(options: EditorStoreOptions): EditorStore {
     rejected: [],
     edits: 0,
     viewCommand: null,
+    lightingPreset: DEFAULT_PRESET,
+    canUndo: false,
+    canRedo: false,
+    historyDepth: 0,
   };
 
   let state = initial;
   const listeners = new Set<() => void>();
   let nonce = 0;
+  /** Pilhas de histórico com o documento **anterior** por entrada: `undo` não reconstrói nada. */
+  let past: SceneDocument[] = [];
+  let future: SceneDocument[] = [];
+
+  function historyPatch(): Pick<EditorState, "canUndo" | "canRedo" | "historyDepth"> {
+    return { canUndo: past.length > 0, canRedo: future.length > 0, historyDepth: past.length };
+  }
+
+  /**
+   * Única forma de mudar o documento a partir daqui: empurra o estado anterior para o histórico,
+   * limpa o `future` (escrever depois de um `undo` não pode manter o redo) e conta a edição.
+   * `countsAsEdit: false` é para navegação de visibilidade, que é reversível mas não é um projeto.
+   */
+  function commit(document: SceneDocument, rejected: readonly string[], countsAsEdit = true): void {
+    past = [...past, state.document];
+    if (past.length > HISTORY_LIMIT) {
+      past = past.slice(past.length - HISTORY_LIMIT);
+    }
+    future = [];
+    set({
+      document,
+      rejected,
+      ...(countsAsEdit ? { edits: state.edits + 1 } : {}),
+      ...historyPatch(),
+    });
+  }
 
   function set(patch: Partial<EditorState>): void {
     state = { ...state, ...patch };
@@ -107,6 +161,8 @@ export function createEditorStore(options: EditorStoreOptions): EditorStore {
     },
     load(project) {
       nonce += 1;
+      past = [];
+      future = [];
       state = {
         ...initial,
         document: buildDemoDocument(project),
@@ -159,14 +215,49 @@ export function createEditorStore(options: EditorStoreOptions): EditorStore {
       }
       // `applied` com `rejected` não-vazio é a aplicação *parcial* (ex.: moveu-se em X, a rotação
       // foi recusada). O documento é o que mudou; o motivo continua visível no painel.
-      set({ document: result.document, rejected: result.rejected, edits: state.edits + 1 });
+      commit(result.document, result.rejected);
+      return true;
+    },
+    setMaterial(elementId, materialId) {
+      const result = withMaterial(state.document, elementId, materialId);
+      if (!result.applied) {
+        set({ rejected: result.rejected });
+        return false;
+      }
+      commit(result.document, result.rejected);
+      return true;
+    },
+    setLightingPreset(preset) {
+      if (preset === state.lightingPreset) {
+        return;
+      }
+      set({ lightingPreset: preset });
+    },
+    undo() {
+      const previous = past[past.length - 1];
+      if (previous === undefined) {
+        return false;
+      }
+      past = past.slice(0, -1);
+      future = [state.document, ...future].slice(0, HISTORY_LIMIT);
+      set({ document: previous, ...historyPatch() });
+      return true;
+    },
+    redo() {
+      const next = future[0];
+      if (next === undefined) {
+        return false;
+      }
+      future = future.slice(1);
+      past = [...past, state.document];
+      set({ document: next, ...historyPatch() });
       return true;
     },
     setElementVisibility(elementId, visible) {
-      set({ document: withVisibility(state.document, elementId, visible) });
+      commit(withVisibility(state.document, elementId, visible), state.rejected, false);
     },
     setCategoryVisibility(category, visible) {
-      set({ document: withCategoryVisibility(state.document, category, visible) });
+      commit(withCategoryVisibility(state.document, category, visible), state.rejected, false);
     },
     requestView(command) {
       nonce += 1;
@@ -175,6 +266,8 @@ export function createEditorStore(options: EditorStoreOptions): EditorStore {
     reset() {
       const rebuilt = buildDemoDocument({ ...options.project });
       nonce += 1;
+      past = [];
+      future = [];
       state = {
         ...initial,
         document: rebuilt,

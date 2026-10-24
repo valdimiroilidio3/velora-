@@ -206,6 +206,25 @@ export const pt = {
     idle: "Palco em espera: desenha só quando mudas alguma coisa.",
     edits: (count: number) => (count === 1 ? "1 edição nesta sessão" : `${count} edições nesta sessão`),
     qualityLabel: "Qualidade de render",
+    lightingLabel: "Luz",
+    lighting: {
+      manha: "Manhã",
+      "meio-dia": "Meio-dia",
+      "fim-de-tarde": "Fim de tarde",
+      noite: "Noite",
+    },
+    lightingNote: "O preset muda luzes, céu ambiente, exposição e brilhos noturnos.",
+    history: {
+      undo: "Anular",
+      redo: "Refazer",
+      steps: (count: number) => (count === 1 ? "1 passo no histórico" : `${count} passos no histórico`),
+      empty: "histórico vazio nesta sessão",
+    },
+    material: {
+      label: "Acabamento",
+      none: "Esta categoria não aceita acabamentos no editor.",
+      hint: "Trocar o acabamento muda o material do objeto; a geometria não é reconstruída.",
+    },
     keyboardHint: "No palco: setas para orbitar, + e − para aproximar, Esc limpa a seleção.",
   },
 } as const;

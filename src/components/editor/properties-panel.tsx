@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Field, controlClass } from "@/components/ui/field";
 import { ui } from "@/i18n/pt";
 import { ruleFor, scaleAxes, toolsFor } from "@/three/edit-rules";
-import { MATERIALS } from "@/three/materials";
+import { allowedMaterialsFor, MATERIAL_IDS, MATERIALS } from "@/three/materials";
 import {
   categoryLabels,
   describeElement,
@@ -75,6 +75,8 @@ function ElementForm({ element, store, rejected }: ElementFormProps): ReactNode 
   const tools = toolsFor(element);
   const metrics = elementMetrics(element);
   const editable = !element.locked && tools.length > 1;
+  // A lista vem da matriz de compatibilidade do domínio: o painel não decide sozinho o que se pode vestir.
+  const materials = allowedMaterialsFor(element.category);
 
   const [position, setPosition] = useState<string[]>(() =>
     element.transform.position.map((value) => formatNumber(value)),
@@ -276,6 +278,37 @@ function ElementForm({ element, store, rejected }: ElementFormProps): ReactNode 
               {rejected.map((reason) => ui.editor.rejected(reason)).join(" · ")}
             </Alert>
           ) : null}
+
+          {materials.length > 0 ? (
+            <Field
+              id="editor-material"
+              label={ui.editor.material.label}
+              hint={ui.editor.material.hint}
+              className="grid gap-1"
+            >
+              {(attributes) => (
+                <select
+                  {...attributes}
+                  value={element.materialId}
+                  onChange={(event) => {
+                    const next = MATERIAL_IDS.find((id) => id === event.target.value);
+                    if (next !== undefined) {
+                      store.setMaterial(element.id, next);
+                    }
+                  }}
+                  className={cnControl(false)}
+                >
+                  {materials.map((id) => (
+                    <option key={id} value={id}>
+                      {MATERIALS[id].label}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </Field>
+          ) : (
+            <p className="text-2xs text-ink-muted">{ui.editor.material.none}</p>
+          )}
 
           <div className="flex flex-wrap items-center gap-2">
             <Button type="submit" size="sm" variant="primary">

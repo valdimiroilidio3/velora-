@@ -81,6 +81,7 @@ export function Viewport3D({
         readToken: readCssToken,
         plan: planFor(latest.current.state),
         quality: latest.current.quality,
+        lightingPreset: latest.current.state.lightingPreset,
         reducedMotion,
         onPick: (elementId, additive) => store.select(elementId, additive),
         onCommit: (elementId, patch) => store.applyTransform(elementId, patch),
@@ -125,6 +126,11 @@ export function Viewport3D({
   useEffect(() => {
     engineRef.current?.setQuality(quality);
   }, [quality]);
+
+  // O preset de luz é estado de apresentação: muda luzes, céu e exposição, nunca o documento.
+  useEffect(() => {
+    engineRef.current?.setLightingPreset(state.lightingPreset);
+  }, [state.lightingPreset]);
 
   useEffect(() => {
     engineRef.current?.applyTheme();

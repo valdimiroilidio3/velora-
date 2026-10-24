@@ -1,6 +1,21 @@
 "use client";
 
-import { Eye, Hand, Maximize2, Move, Rotate3d, RotateCcw, Scaling } from "lucide-react";
+import {
+  Eye,
+  Hand,
+  Maximize2,
+  Moon,
+  Move,
+  Redo2,
+  Rotate3d,
+  RotateCcw,
+  Scaling,
+  Sun,
+  Sunrise,
+  Sunset,
+  Undo2,
+} from "lucide-react";
+import { LIGHTING_PRESET_IDS, type LightingPresetId } from "@/three/lighting-presets";
 import { Button } from "@/components/ui/button";
 import type { ReactNode } from "react";
 import { VIEW_PRESETS } from "@/three/view-presets";
@@ -18,6 +33,13 @@ import { isConstrainedDevice } from "@/lib/webgl";
  *  · tudo o que mexe na câmera passa pelo store (`requestView`), porque o palco é o único dono do
  *    `OrbitControls` e uma segunda via de escrita seria a receita para estados divergentes.
  */
+
+const LIGHT_ICONS: Record<LightingPresetId, typeof Sun> = {
+  manha: Sunrise,
+  "meio-dia": Sun,
+  "fim-de-tarde": Sunset,
+  noite: Moon,
+};
 
 const TOOL_ICONS: Record<EditorTool, typeof Hand> = {
   selecionar: Hand,
@@ -111,7 +133,61 @@ export function EditorToolbar({
         </Button>
       </div>
 
-      <div className="ml-auto flex items-center gap-1">
+      <div className="flex items-center gap-1">
+        <Button
+          size="sm"
+          variant="quiet"
+          leadingIcon={<Undo2 aria-hidden="true" />}
+          disabled={!state.canUndo}
+          title={state.canUndo ? ui.editor.history.undo : ui.editor.history.empty}
+          onClick={() => store.undo()}
+        >
+          {ui.editor.history.undo}
+        </Button>
+        <Button
+          size="sm"
+          variant="quiet"
+          leadingIcon={<Redo2 aria-hidden="true" />}
+          disabled={!state.canRedo}
+          onClick={() => store.redo()}
+        >
+          {ui.editor.history.redo}
+        </Button>
+        <span className="tabular text-2xs text-ink-muted">
+          {state.historyDepth > 0 ? ui.editor.history.steps(state.historyDepth) : ui.editor.history.empty}
+        </span>
+      </div>
+
+      <div className="ml-auto flex items-center gap-1" role="group" aria-label={ui.editor.lightingLabel}>
+        <span className="text-2xs uppercase tracking-wide text-ink-muted">{ui.editor.lightingLabel}</span>
+        {LIGHTING_PRESET_IDS.map((preset) => {
+          const Icon = LIGHT_ICONS[preset];
+          const active = state.lightingPreset === preset;
+          return (
+            <button
+              key={preset}
+              type="button"
+              aria-pressed={active}
+              title={
+                active
+                  ? `${ui.editor.lighting[preset]} — ${ui.editor.lightingNote}`
+                  : ui.editor.lighting[preset]
+              }
+              className={cn(
+                "flex items-center gap-1.5 rounded-md px-2 py-1 text-2xs text-ink-secondary transition-colors hover:bg-canvas-sunken",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus",
+                active && "bg-surface text-ink shadow-e1",
+              )}
+              onClick={() => store.setLightingPreset(preset)}
+            >
+              <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+              {ui.editor.lighting[preset]}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-1">
         <span className="text-2xs uppercase tracking-wide text-ink-muted">{ui.editor.qualityLabel}</span>
         {QUALITY_CONTROL.map((option) => (
           <button
