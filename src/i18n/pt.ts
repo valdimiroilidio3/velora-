@@ -142,6 +142,72 @@ export const pt = {
     reload: "Recarregar a cena",
     keyboardHint: "Com a cena focada, usa as setas para rodar e +/− para aproximar.",
   },
+  editor: {
+    title: "Editor de modelo 3D",
+    subtitle:
+      "Motor de cena, seleção, hierarquia e transformações sobre um modelo volumétrico de demonstração.",
+    notice:
+      "Modelo procedural de demonstração: geometria coerente, não é projeto de execução nem modelo BIM validado.",
+    scope: {
+      title: "Onde isto corre",
+      body: "As edições vivem nesta página e nesta sessão. Não há gravação, sincronização nem versão.",
+    },
+    toolsLabel: "Ferramenta",
+    viewLabel: "Enquadramento",
+    hierarchyLabel: "Hierarquia do modelo",
+    propertiesLabel: "Propriedades",
+    statusLabel: "Estado do palco",
+    source: {
+      label: "Modelo de demonstração",
+      hint: "Seis volumetrias fictícias, geradas a partir dos dados de exemplo.",
+    },
+    loading: "A preparar o motor de cena…",
+    noWebgl: {
+      title: "Sem contexto WebGL: o editor continua utilizável",
+      body: "A hierarquia, as propriedades e as ferramentas funcionam; só o palco 3D não é desenhado neste dispositivo.",
+    },
+    contextLost: "O contexto GPU foi interrompido. Recarrega o palco para continuar.",
+    reload: "Recarregar o palco",
+    selection: {
+      empty: "Nada selecionado.",
+      hint: "Clica num volume no palco ou escolhe um elemento na hierarquia.",
+      multiple: (count: number) =>
+        count === 1 ? "1 elemento selecionado" : `${count} elementos selecionados`,
+      clear: "Limpar seleção",
+      focus: "Enquadrar seleção",
+    },
+    tree: {
+      expand: "Expandir",
+      collapse: "Colapsar",
+      show: "Mostrar categoria",
+      hide: "Ocultar categoria",
+      showElement: "Mostrar elemento",
+      hideElement: "Ocultar elemento",
+      empty: "Nenhum elemento visível nesta categoria.",
+      truncated: (count: number) => `Demasiados elementos para listar: ${String(count)} por mostrar.`,
+      note: "Um clique seleciona; o olho escreve a visibilidade no documento.",
+    },
+    properties: {
+      position: "Posição (m)",
+      rotation: "Rotação (°)",
+      scale: "Escala",
+      apply: "Aplicar",
+      axes: { x: "X · nascente", y: "Y · cima", z: "Z · norte" },
+      step: (m: number) => `passo de ${m.toFixed(2).replace(".", ",")} m`,
+      locked: "Este elemento não é editável por regra.",
+      thicknessNote: "Só a espessura pode ser escalada nesta categoria.",
+      visibility: "Visível",
+    },
+    rejected: (reason: string) => `Não aplicado: ${reason}`,
+    limits: (offset: number, min: number, max: number) =>
+      `Deslocamento até ${offset} m; escala entre ${min}× e ${max}×.`,
+    stats: (fps: number, triangles: number, calls: number, meshes: number) =>
+      `${fps} fps · ${triangles.toLocaleString("pt-PT")} triângulos · ${calls} draw calls · ${meshes} malhas`,
+    idle: "Palco em espera: desenha só quando mudas alguma coisa.",
+    edits: (count: number) => (count === 1 ? "1 edição nesta sessão" : `${count} edições nesta sessão`),
+    qualityLabel: "Qualidade de render",
+    keyboardHint: "No palco: setas para orbitar, + e − para aproximar, Esc limpa a seleção.",
+  },
 } as const;
 
 export type UiStrings = typeof pt;

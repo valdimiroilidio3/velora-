@@ -1,6 +1,16 @@
 "use client";
 
-import { Boxes, Compass, CreditCard, LayoutList, Mail, Settings2, Sparkles, Users } from "lucide-react";
+import {
+  Boxes,
+  Compass,
+  CreditCard,
+  LayoutList,
+  Mail,
+  Move3d,
+  Settings2,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { isNavItemActive, navGroups, type NavIcon } from "@/config/nav";
 import { cn } from "@/lib/cn";
@@ -12,6 +22,7 @@ const iconFor: Record<NavIcon, (props: { className?: string }) => ReactNode> = {
   overview: LayoutList,
   projects: Boxes,
   scene: Compass,
+  editor: Move3d,
   preferences: Settings2,
   members: Users,
   leads: Mail,

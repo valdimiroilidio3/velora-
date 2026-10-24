@@ -9,6 +9,7 @@ import { DemoNotice } from "@/components/ui/demo-badge";
 import { RadioCards } from "@/components/ui/radio-cards";
 import { ProjectStatusPill } from "@/components/ui/status-pill";
 import { SceneFallback } from "@/components/scene/scene-fallback";
+import { EditorView } from "@/components/editor/editor-view";
 import { ProjectCard } from "@/components/projects/project-card";
 import { buildMassing } from "@/demo/massing";
 import { demoProjects } from "@/demo/projects";
@@ -127,6 +128,30 @@ describe("a11y (axe-core)", () => {
     expect(screen.getByRole("radio", { name: /Confortável/i })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: /nome do empreendimento/i })).toBeInTheDocument();
     expect(named(groups.link[0] as Element)).toBe(demoProjects[0]?.name);
+  });
+
+  it("o editor de modelo não acrescenta violações de ARIA", async () => {
+    const project = demoProjects[0];
+    if (project === undefined) throw new Error("sem projeto de demonstração");
+    const { container } = render(
+      <main>
+        <EditorView project={project} />
+      </main>,
+    );
+    const results = await axe.run(container, {
+      rules: {
+        "color-contrast": { enabled: false },
+        "landmark-one-main": { enabled: false },
+        region: { enabled: false },
+      },
+    });
+    expect(
+      results.violations.map((violation) => ({
+        id: violation.id,
+        impact: violation.impact,
+        nodes: violation.nodes.map((node) => node.html.slice(0, 120)),
+      })),
+    ).toEqual([]);
   });
 
   it("a marcação de demonstração está presente onde o catálogo aparece", () => {

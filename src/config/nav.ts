@@ -1,5 +1,5 @@
 export type NavIcon =
-  "overview" | "projects" | "scene" | "preferences" | "members" | "leads" | "billing" | "ai";
+  "overview" | "projects" | "scene" | "editor" | "preferences" | "members" | "leads" | "billing" | "ai";
 
 export interface NavItem {
   readonly href: string;
@@ -27,6 +27,7 @@ export const navGroups: readonly NavGroup[] = [
       { href: "/app", label: "Visão geral", icon: "overview" },
       { href: "/app/projetos", label: "Projetos", icon: "projects" },
       { href: "/app/cena", label: "Cena arquitetónica", icon: "scene" },
+      { href: "/app/modelo", label: "Editor de modelo 3D", icon: "editor" },
     ],
   },
   {
