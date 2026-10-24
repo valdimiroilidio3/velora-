@@ -98,9 +98,23 @@ Node ≥ 22 e Corepack ativo obtém o mesmo a partir do campo `packageManager`.
 | QG-18 | Lighthouse                       | **PENDENTE**              | A partir do momento em que existir UI com jornada real.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | QG-19 | Desempenho 3D                    | **PENDENTE**              | Nada de 3D implementado. O orçamento a que teremos de obedecer está definido em `ARCHITECTURE.md` §8, mas não existe um único byte de cena 3D para medir.                                                                                                                                                                                                                                                                                                                                                                                                       |
 
-### 4.1 Contas de resultados
+### 4.1 Execução em CI — GitHub Actions (evidência remota)
 
-- Portões **APROVADOS**: 11 (QG-01 … QG-12, exceto os pendentes abaixo).
+Não é só local: o workflow foi empurrado e executado no GitHub.
+
+| Item                                    | Valor                                                                                                                                                                                                                                                       |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Execução                                | run **40109854774** · workflow `CI` · branch `arena/5051ef25-velora` · evento `push`                                                                                                                                                                        |
+| URL                                     | https://github.com/valdimiroilidio3/velora-/actions/runs/40109854774                                                                                                                                                                                        |
+| Resultado                               | **sucesso**, `Quality gates in 32s`, 15/15 passos verdes (QG-01, QG-10, QG-09, QG-02, QG-03, QG-04, QG-05+QG-11, QG-06, QG-07, QG-08, QG-12)                                                                                                                |
+| Verificação feita por                   | `gh run watch 40109854774 --exit-status` → exit 0                                                                                                                                                                                                           |
+| Anotação do GitHub (a tratar na Fase 1) | "the ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026" (`actions/runner-images#14748`) — o nosso `runs-on` é um _label_, não uma imagem fixada                                                                                      |
+| Limite desta evidência                  | o download do log bruto do job **não foi possível a partir deste sandbox** (o host `results-receiver.actions.githubusercontent.com` não está na allowlist de rede). O resultado por passo vem do sumário da API `gh run view`, não do texto integral do log |
+
+### 4.2 Contas de resultados
+
+- Portões **APROVADOS**: 11 (QG-01 … QG-12), executados **duas vezes** — no sandbox local e no
+  GitHub Actions (run 40109854774, 15/15 passos verdes em 32 s).
 - Portões **PENDENTES**: 5 (QG-13 parcialmente manual, QG-16, QG-17, QG-18, QG-19).
 - Portões **BLOQUEADOS**: 2 (QG-14, QG-15 — ausente acesso a PostgreSQL).
 - Portões **REPROVADOS**: 0.

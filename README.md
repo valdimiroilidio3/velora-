@@ -110,7 +110,8 @@ Gates pendentes/bloqueados por inexistência de objeto (BD, UI real, 3D): QG-13 
 - Aplicação mínima real: `src/app/layout.tsx`, `src/app/page.tsx`, `src/app/globals.css`,
   `src/app/api/health/route.ts`, `src/lib/env.ts`, `src/lib/env.test.ts`. Serve para **executar**
   build, testes, cabeçalhos e smoke test — não para simular progresso.
-- CI definida em `.github/workflows/ci.yml` (ainda sem execução registada neste repositório).
+- CI definida **e executada** em `.github/workflows/ci.yml`: run 40109854774 no branch de trabalho,
+  workflow `CI`, 15/15 passos verdes em 32 s (ver `docs/QUALITY-GATES.md` §4.1).
 - Resultados medidos: typecheck, lint, formatação, 14 testes, build, arranque com `HTTP 200`,
   `audit` sem vulnerabilidades, `peers check` limpo, varrimento de segredos limpo.
 
@@ -133,8 +134,8 @@ Gates pendentes/bloqueados por inexistência de objeto (BD, UI real, 3D): QG-13 
 - **B-02** O free tier da Vercel (Hobby) é só para uso pessoal **não-comercial** (fair use/ToS), o que não
   é compatível com o lançamento comercial do VELORA. Precisa de decisão antes do primeiro beta público.
 - **B-05/B-10** Orçamento de IA e bases legais/DPA.
-- Verificação de CI: os comandos foram corridos localmente; o job de Actions precisa de um push/PR ao
-  branch para ficar com registo público.
+- Proteção de `main` (branch protection + revisões obrigatórias) ainda **não** está ativa: o CI já
+  corre em cada push, mas nada impede hoje um merge sem CI verde. Ação humana pendente.
 
 ## Índice de documentação
 

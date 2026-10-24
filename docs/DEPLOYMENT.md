@@ -138,6 +138,9 @@ Job `quality` (único, ubuntu-latest, Node 22.22.3, pnpm via Corepack):
 
 Ainda não incluídos, com razão documentada: Lighthouse CI (QG-18), Playwright (QG-17), testes de
 integração com Postgres (QG-14/15 — precisam de serviço de BD), coverage thresholds, deploy.
+Nota da primeira execução: o GitHub avisa que `ubuntu-latest` migra para Ubuntu 26 (19/10/2026);
+quando existir produção, fixa-se a imagem em vez de usar label. Branch protection em `main` continua
+pendente (B-01) — o CI corre, mas nada bloqueia hoje um merge sem CI verde.
 
 ---
 
