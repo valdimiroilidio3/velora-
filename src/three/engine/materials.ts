@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { MATERIALS } from "../materials";
 import type { MaterialId, SceneDocument } from "../model";
+import { SURFACE_BY_MATERIAL } from "../surfaces";
+import type { SurfaceLibrary } from "./surfaces";
 
 /**
  * Materiais Three.js construídos a partir de `MATERIALS` (os parâmetros vivem fora de `three`,
@@ -11,6 +13,11 @@ import type { MaterialId, SceneDocument } from "../model";
  *
  * Cores vêm sempre dos tokens CSS (`--scene-*`, `--accent`): `readToken` é injetado precisamente
  * para que o teste em Node, sem CSS, possa alimentar cores fixas.
+ *
+ * Desde a Fase 4, os materiais têm também **superfície**: mapas procedurais gerados em
+ * `src/three/surfaces.ts` e materializados por `SurfaceLibrary`. A biblioteca de texturas é
+ * opcional (ausente em `leve` e ausente em teste) e é **emprestada** — o registo usa os mapas,
+ * quem os liberta é o palco. Confundir posse aqui é a forma clássica de partir um `dispose()`.
  */
 
 export interface MaterialRegistry {
@@ -23,6 +30,10 @@ export interface MaterialRegistry {
    */
   setHighlights(entries: readonly HighlightEntry[]): void;
   readonly selectionColor: THREE.Color;
+  /** Luz noturna interior (vidros e mobiliário acendem-se) — ver `SURFACE_BY_MATERIAL`. */
+  setNight(enabled: boolean): void;
+  /** Reanexa os mapas depois de uma mudança de qualidade (a biblioteca libertou os antigos). */
+  reattachMaps(): void;
   dispose(): void;
   /** Contagem para o `dispose` poder ser afirmado em teste. */
   size(): number;
@@ -36,6 +47,16 @@ export interface HighlightEntry {
 export interface MaterialRegistryOptions {
   readonly readToken: (name: string) => string | null;
   readonly document?: Document | undefined;
+  /** Presente só quando a qualidade permite mapas; `null` deixa o material proceduralmente liso. */
+  readonly surfaces?: SurfaceLibrary | undefined;
+}
+
+/**
+ * Quanta reflexo o ambiente pode dar a uma superfície. Rugosidade 0,98 (relva) quase nada, 0,15
+ * (vidro) quase tudo — é a curva usual de *art direction*, não uma medição de laboratório.
+ */
+export function envMapIntensityFor(roughness: number): number {
+  return Number((0.18 + Math.pow(1 - roughness, 2.2) * 0.95).toFixed(3));
 }
 
 function colorFrom(readToken: (name: string) => string | null, token: string, fallback: string): THREE.Color {
@@ -45,7 +66,9 @@ function colorFrom(readToken: (name: string) => string | null, token: string, fa
 
 export function createMaterialRegistry(options: MaterialRegistryOptions): MaterialRegistry {
   const cache = new Map<MaterialId, THREE.MeshStandardMaterial>();
+  const surfaces = options.surfaces ?? null;
   const read = options.readToken;
+  let night = false;
   const selectionColor = colorFrom(read, "--accent", "#0f4f47");
   const hoverColor = colorFrom(read, "--line-control", "#7b8087");
 
@@ -79,8 +102,38 @@ export function createMaterialRegistry(options: MaterialRegistryOptions): Materi
       material.transparent = params.transparent;
       // Vidros sem `depthWrite` deixam ver o interior sem artefactos de ordenação.
       material.depthWrite = !params.transparent;
+      applyNight(id, material);
       material.needsUpdate = true;
     }
+  }
+
+  /** Brilho interior: só existe onde a superfície o declara, e só no preset noturno. */
+  function applyNight(id: MaterialId, material: THREE.MeshStandardMaterial): void {
+    const def = SURFACE_BY_MATERIAL[id];
+    if (def.nightEmissive <= 0) {
+      material.emissive.setRGB(0, 0, 0);
+      material.emissiveIntensity = 1;
+      return;
+    }
+    material.emissive.set(def.emissiveColor);
+    material.emissiveIntensity = night ? def.nightEmissive : 0;
+  }
+
+  function attachMaps(id: MaterialId, material: THREE.MeshStandardMaterial): void {
+    const set = surfaces === null ? null : surfaces.get(id);
+    if (set === null || set === undefined) {
+      material.map = null;
+      material.roughnessMap = null;
+      material.normalMap = null;
+    } else {
+      material.map = set.map;
+      material.roughnessMap = set.roughnessMap;
+      material.normalMap = set.normalMap;
+      const def = SURFACE_BY_MATERIAL[id];
+      material.normalScale.set(def.bump, def.bump);
+    }
+    // `needsUpdate` não é opcional: adicionar/remover um mapa muda o *programa* do *shader*.
+    material.needsUpdate = true;
   }
 
   return {
@@ -98,11 +151,29 @@ export function createMaterialRegistry(options: MaterialRegistryOptions): Materi
         transparent: params.transparent,
       });
       material.depthWrite = !params.transparent;
+      material.envMapIntensity = envMapIntensityFor(params.roughness);
       material.name = `velora.material.${id}`;
+      attachMaps(id, material);
       cache.set(id, material);
       return material;
     },
     refresh: applyColors,
+    setNight(enabled) {
+      if (night === enabled) {
+        return;
+      }
+      night = enabled;
+      for (const [id, material] of cache) {
+        applyNight(id, material);
+        material.needsUpdate = true;
+      }
+    },
+    /** Chamado pelo palco quando a qualidade mudou e os mapas voltaram a ser construídos. */
+    reattachMaps() {
+      for (const [id, material] of cache) {
+        attachMaps(id, material);
+      }
+    },
     setHighlights(entries) {
       // O realce não pode ser `emissive` no material partilhado: isso pintaria os 400 elementos que
       // usam a mesma parede de fachada. Vive num contorno dedicado, adicionado ao próprio mesh.

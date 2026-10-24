@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { ElementPlan, RenderPlan } from "../render-plan";
 import { createMaterialRegistry, type MaterialRegistry } from "./materials";
+import type { SurfaceLibrary } from "./surfaces";
 import { degToRad, mm } from "../units";
 
 /**
@@ -22,6 +23,9 @@ export interface RendererLike {
   setPixelRatio(value: number): void;
   setSize(width: number, height: number, updateStyle?: boolean): void;
   setClearColor(color: THREE.Color, alpha?: number): void;
+  /** O fake de teste não tem gestão de cor; o palco escreve só quando o campo existe. */
+  toneMapping?: THREE.ToneMapping;
+  toneMappingExposure?: number;
   render(scene: THREE.Scene, camera: THREE.Camera): void;
   dispose(): void;
   forceContextLoss?(): void;
@@ -34,6 +38,9 @@ export interface SceneManagerOptions {
   readonly shadows: boolean;
   readonly maxPixelRatio: number;
   readonly antialias: boolean;
+  /** Mapas procedurais do material (`Fase 4`); ausente = materiais lisos. */
+  readonly surfaces?: SurfaceLibrary | undefined;
+  readonly tint?: string | undefined;
   /** Injetável: é assim que o ciclo de vida se testa em Node, sem GPU nem canvas real. */
   readonly createRenderer?: ((canvas: HTMLCanvasElement) => RendererLike) | undefined;
   readonly onContextLost?: ((event: Event) => void) | undefined;
@@ -61,6 +68,14 @@ export interface SceneManager {
   setPixelRatio(value: number): void;
   render(): void;
   refreshTheme(): void;
+  /** *Tint* do preset sobre o fundo do tema (céu quente ao fim da tarde, frio à noite). */
+  setTint(hex: string): void;
+  /**
+   * *Tone mapping* do palco: `ACESFilmic` com a exposição do *preset*. Com luzes a 2,6 e betão
+   * claro sem curva, as fachadas estouram em branco — é o erro de rendering mais visível em
+   * visualização arquitetónica, e é também o que faz o vidro escuro ler-se como vidro.
+   */
+  applyExposure(exposure: number): void;
   setShadows(enabled: boolean): void;
   stats(): { calls: number; triangles: number; geometries: number; textures: number; meshes: number };
   dispose(): void;
@@ -102,15 +117,26 @@ export function createSceneManager(options: SceneManagerOptions): SceneManager {
   root.name = "velora.root";
   scene.add(root);
 
-  const registry = createMaterialRegistry({ readToken: options.readToken });
+  const registry = createMaterialRegistry({ readToken: options.readToken, surfaces: options.surfaces });
   const background = new THREE.Color(options.readToken("--canvas") ?? "#f6f4f0");
-  scene.background = background;
+  /** *Tint* do preset de luz, multiplicado sobre o token do tema: o céu muda, a paleta não. */
+  let tint = options.tint ?? "";
+
+  function applyBackground(): void {
+    const base = new THREE.Color(options.readToken("--canvas") ?? "#f6f4f0");
+    if (tint.length > 0) {
+      base.multiply(new THREE.Color(tint));
+    }
+    background.copy(base);
+    scene.background = background;
+    renderer.setClearColor(base, 1);
+  }
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 4000);
   camera.position.set(40, 26, 40);
 
   const renderer = (options.createRenderer ?? DEFAULT_CREATE_RENDERER)(options.canvas);
-  renderer.setClearColor(background, 1);
+  applyBackground();
   renderer.shadowMap.enabled = options.shadows;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -314,12 +340,20 @@ export function createSceneManager(options: SceneManagerOptions): SceneManager {
       }
       renderer.render(scene, camera);
     },
+    applyExposure(exposure) {
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = exposure;
+    },
+    setTint(hex) {
+      if (tint === hex) {
+        return;
+      }
+      tint = hex;
+      applyBackground();
+    },
     refreshTheme() {
       registry.refresh();
-      const next = new THREE.Color(options.readToken("--canvas") ?? "#f6f4f0");
-      background.copy(next);
-      scene.background = next;
-      renderer.setClearColor(next, 1);
+      applyBackground();
     },
     setShadows(enabled) {
       renderer.shadowMap.enabled = enabled;

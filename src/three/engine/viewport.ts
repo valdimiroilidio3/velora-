@@ -7,7 +7,10 @@ import { createLighting } from "./lighting";
 import { createPerformanceMonitor, type PerformanceSample } from "./performance-monitor";
 import type { RendererLike } from "./scene-manager";
 import { createSceneManager } from "./scene-manager";
+import { LIGHTING_PRESETS, type LightingPresetId } from "../lighting-presets";
 import { createSelectionManager } from "./selection";
+import { createStageEnvironment } from "./environment";
+import { createSurfaceLibrary, medianPanelSize, type SurfaceLibrary } from "./surfaces";
 import { createTransformGizmo, type GizmoMode } from "./transform-gizmo";
 
 /**
@@ -41,6 +44,8 @@ export interface EditorViewportOptions {
   readonly plan: RenderPlan;
   readonly quality: QualityTier;
   readonly reducedMotion: boolean;
+  /** Preset de iluminação inicial (o céu, as luzes e a exposição partem daqui). */
+  readonly lightingPreset?: LightingPresetId;
   /** Injetável: em Node não há WebGL, e é assim que o ciclo de vida é testável. */
   readonly createRenderer?: ((canvas: HTMLCanvasElement) => RendererLike) | undefined;
   onPick: (elementId: string | null, additive: boolean) => void;
@@ -60,6 +65,8 @@ export interface EditorViewport {
   orbit(direction: "left" | "right" | "up" | "down"): void;
   zoom(direction: "in" | "out"): void;
   setQuality(tier: QualityTier): void;
+  /** Muda luzes, céu ambiente, exposição e brilhos noturnos — e devolve o preset ativo. */
+  setLightingPreset(presetId: LightingPresetId): void;
   applyTheme(): void;
   invalidate(): void;
   stats(): { calls: number; triangles: number; geometries: number; textures: number; meshes: number };
@@ -71,6 +78,10 @@ const STATS_EVERY_FRAMES = 24;
 
 export function createEditorViewport(options: EditorViewportOptions): EditorViewport {
   const tier = QUALITY_TIERS[options.quality];
+  // `leve` não tem mapas nem ambiente: é a decisão de orçamento, não uma omissão.
+  const surfaces: SurfaceLibrary | null =
+    options.quality === "leve" ? null : createSurfaceLibrary(options.quality);
+
   const manager = createSceneManager({
     canvas: options.canvas,
     container: options.container,
@@ -78,6 +89,8 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     shadows: tier.shadows,
     maxPixelRatio: tier.maxPixelRatio,
     antialias: tier.antialias,
+    surfaces: surfaces ?? undefined,
+    tint: LIGHTING_PRESETS[options.lightingPreset ?? "meio-dia"].backgroundTint,
     createRenderer: options.createRenderer,
     onContextLost: () => options.onContextLost?.(),
   });
@@ -86,7 +99,30 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     shadows: tier.shadows,
     readToken: options.readToken,
     shadowMapSize: tier.shadowMapSize,
+    preset: options.lightingPreset ?? "meio-dia",
   });
+  const environment = createStageEnvironment(manager.renderer, scene);
+  let quality = options.quality;
+  let presetId: LightingPresetId = options.lightingPreset ?? "meio-dia";
+
+  /** Escala física do *tiling*: mediana dos painéis por material, a partir do plano atual. */
+  function applyTiling(): void {
+    if (surfaces === null) {
+      return;
+    }
+    const sizes = medianPanelSize(
+      plan.elements.flatMap((element) =>
+        element.primitives.map((primitive) => ({
+          materialId: element.materialId,
+          widthM: Math.max(primitive.size[0], primitive.size[2]),
+          heightM: primitive.size[1],
+        })),
+      ),
+    );
+    for (const [materialId, size] of sizes) {
+      surfaces.setRepeat(materialId, size.widthM, size.heightM);
+    }
+  }
 
   let plan = options.plan;
   let hovered: string | null = null;
@@ -261,8 +297,12 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
   );
   screenObserver.observe(options.canvas);
 
-  // Arranque: cena, enquadramento, tema, primeira moldura.
+  // Arranque: cena, enquadramento, tema, pipeline de cor, primeira moldura.
   manager.sync(plan);
+  applyTiling();
+  environment.update(presetId, options.quality);
+  manager.applyExposure(LIGHTING_PRESETS[presetId].exposure);
+  registry.setNight(LIGHTING_PRESETS[presetId].night);
   lighting.update(plan.bounds);
   cameraController.applyBounds(plan.bounds);
   cameraController.frame(plan.bounds, "perspetiva");
@@ -274,6 +314,7 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       const radiusChanged = Math.abs(next.bounds.radius - plan.bounds.radius) > 0.05;
       plan = next;
       manager.sync(plan);
+      applyTiling();
       lighting.update(plan.bounds);
       if (radiusChanged) {
         cameraController.applyBounds(plan.bounds);
@@ -331,9 +372,30 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
     },
     setQuality(next) {
       const nextTier = QUALITY_TIERS[next];
+      quality = next;
       manager.setPixelRatio(nextTier.maxPixelRatio);
       manager.setShadows(nextTier.shadows);
       lighting.setShadows(nextTier.shadows);
+      // Qualidade nova → mapas novos (os velhos são libertados pela própria biblioteca) e um
+      // ambiente novo. Reconstruir materiais seria desperdício; reconstruir mapas é obrigatório.
+      surfaces?.setQuality(next);
+      registry.reattachMaps();
+      applyTiling();
+      environment.update(presetId, next);
+      invalidate();
+    },
+    setLightingPreset(next) {
+      if (next === presetId) {
+        return;
+      }
+      presetId = next;
+      const preset = LIGHTING_PRESETS[next];
+      const shadows = lighting.applyPreset(next);
+      manager.setShadows(QUALITY_TIERS[quality].shadows && shadows);
+      manager.setTint(preset.backgroundTint);
+      manager.applyExposure(preset.exposure);
+      registry.setNight(preset.night);
+      environment.update(next, quality);
       invalidate();
     },
     applyTheme,
@@ -357,6 +419,10 @@ export function createEditorViewport(options: EditorViewportOptions): EditorView
       // O `manager.dispose()` é dono de geometrias, materiais, grades, `registry` e renderer
       // (incluindo `forceContextLoss`): chamar qualquer uma destas duas vezes é um double free.
       manager.dispose();
+      // Depois dos materiais, porque são eles que referenciam os mapas: libertar antes era deixar
+      // um `MeshStandardMaterial` a apontar para uma textura morta.
+      environment.dispose();
+      surfaces?.dispose();
     },
   };
 }

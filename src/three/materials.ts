@@ -219,3 +219,41 @@ export function stairSteps(
   }
   return out;
 }
+
+/**
+ * Que material pode vestir que categoria (`Fase 4`).
+ *
+ * O pedido é explícito em não oferecer o que o motor não sustenta: um painel do painel de
+ * propriedades com dez materiais para o terreno seria uma interface a mentir. A lista é curta e a
+ * razão da recusa é escrita, porque "não podes" sem explicação é o que faz um utilizador fechar o
+ * editor. O material por omissão da categoria vem sempre em primeiro.
+ */
+export const MATERIAL_PERMISSIONS: Readonly<Record<ElementCategory, readonly MaterialId[]>> = {
+  terrain: [],
+  platform: [],
+  slab: ["slab", "wall", "core", "roof"],
+  wall: ["wall", "core", "slab", "roof", "glazing"],
+  partition: ["partition", "wall", "door", "glazing"],
+  door: ["door", "partition", "wall"],
+  window: ["glazing", "wall"],
+  roof: ["roof", "slab", "platform", "ground"],
+  circulation: ["core", "slab", "wall"],
+  interior: ["furniture", "partition", "door", "wall"],
+};
+
+export const MATERIAL_REFUSAL_REASONS: Readonly<Partial<Record<ElementCategory, string>>> = {
+  terrain: "O plano de referência não tem acabamento: é o solo, não um elemento do edifício.",
+  platform: "A implantação pertence ao desenho do lote; o seu acabamento muda com o projeto, não no editor.",
+};
+
+export function allowedMaterialsFor(category: ElementCategory): readonly MaterialId[] {
+  return MATERIAL_PERMISSIONS[category];
+}
+
+export function canWear(materialId: MaterialId, category: ElementCategory): boolean {
+  return MATERIAL_PERMISSIONS[category].includes(materialId);
+}
+
+export function materialRefusalReason(category: ElementCategory): string {
+  return MATERIAL_REFUSAL_REASONS[category] ?? "Esta categoria não aceita acabamentos do editor de maquete.";
+}

@@ -1,4 +1,5 @@
 import { resolveTransform } from "./edit-rules";
+import { canWear, MATERIALS, materialRefusalReason } from "./materials";
 import { areaLabel, dimensionLabel, mm, normalizeDegrees, volumeLabel, type Vec3 } from "./units";
 // Estas três são usadas só em posição de tipo (`typeof`), por isso entram como import de tipo.
 import type { NORTH_AXIS, UNIT_CONVENTION_ID, UP_AXIS } from "./units";
@@ -308,4 +309,39 @@ export function documentBounds(document: SceneDocument, onlyVisible = true): Bou
     center,
     radius: Math.max(radius, 1),
   };
+}
+
+export interface MaterialResult {
+  readonly document: SceneDocument;
+  readonly applied: boolean;
+  /** Motivo legível quando a troca foi recusada (categoria bloqueada ou material incompatível). */
+  readonly rejected: readonly string[];
+}
+
+/**
+ * Trocar o acabamento de um elemento (`Fase 4`) — a única edição que não mexe em geometria: o
+ * `RenderPlan` muda a chave de material, o `SceneManager` troca a referência no `Mesh`, e nem a
+ * geometria nem a seleção são reconstruídas.
+ */
+export function withMaterial(document: SceneDocument, id: string, materialId: MaterialId): MaterialResult {
+  const element = elementById(document, id);
+  if (element === undefined) {
+    return { document, applied: false, rejected: ["elemento inexistente"] };
+  }
+  if (element.locked) {
+    return { document, applied: false, rejected: [materialRefusalReason(element.category)] };
+  }
+  if (!canWear(materialId, element.category)) {
+    return {
+      document,
+      applied: false,
+      rejected: [
+        `O ${MATERIALS[materialId].label.toLowerCase()} não se aplica a ${categoryLabels[element.category].toLowerCase()}.`,
+      ],
+    };
+  }
+  if (element.materialId === materialId) {
+    return { document, applied: false, rejected: [] };
+  }
+  return { document: replaceElement(document, { ...element, materialId }), applied: true, rejected: [] };
 }
