@@ -1,0 +1,143 @@
+name: CI
+
+# Portões QG-01…QG-12 de docs/QUALITY-GATES.md.
+# Versões das actions fixadas com `gh api repos/actions/<repo>/releases/latest` em 2026-10-24
+# (checkout v7.0.1, setup-node v7.1.0). Fixar por SHA é o próximo passo (decisão B-09).
+#
+# Porque `push: branches: ['**']` enquanto não existir branch protection em `main` (B-01):
+# cada fase precisa de evidência de que os gates correm, inclusive em ramos de sessão.
+# Ao ativar a proteção de `main`, reduzir para `push: [main]` + `pull_request` (Fase 1).
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Telemetria do Next.js desligada em ambiente partilhado (docs/SECURITY.md §7).
+      NEXT_TELEMETRY_DISABLED: 1
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: 0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      # O pnpm tem de existir antes do setup-node para que este consiga calcular o caminho do cache.
+      # A versão vem do campo `packageManager` do package.json — o mesmo mecanismo do Corepack em local,
+      # sem ação de terceiros e sem pnpm global na imagem.
+      - name: Enable Corepack + pnpm pinned version
+        run: |
+          corepack enable pnpm
+          corepack prepare "$(node -p "require('./package.json').packageManager")" --activate
+          pnpm --version
+
+      - name: Setup Node
+        uses: actions/setup-node@v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: QG-01 · Instalação reproduzível
+        run: pnpm install --frozen-lockfile
+
+      - name: QG-10 · Política de build scripts de dependências
+        run: pnpm permissions
+
+      - name: QG-09 · Consistência de peers
+        run: pnpm peers check
+
+      - name: QG-02 · Tipos
+        run: pnpm run typecheck
+
+      - name: QG-03 · Lint
+        run: pnpm run lint
+
+      - name: QG-04 · Formatação
+        run: pnpm run format:check
+
+      - name: QG-05 + QG-11 · Testes unitários e contrato de configuração
+        run: pnpm run test
+
+      - name: QG-06 · Build de produção
+        run: pnpm run build
+
+      # Em CI não existem segredos de produção, portanto `/api/health` *deve* responder
+      # 503 config_invalid (fail-fast do guardrail). Aceitamos 200 (config válida) ou 503;
+      # qualquer outro código é regressão. O payload nunca pode expor valores de configuração.
+      - name: QG-07 · Smoke test do artefacto + cabeçalhos de segurança
+        run: |
+          # Redirecionar o stdout do servidor para ficheiro: sem isto o `next start` mantém o pipe do
+          # step aberto e o job pode não terminar (a morte do pai não fecha o pipe do filho).
+          pnpm start -H 127.0.0.1 -p 3100 > /tmp/next-start.log 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+            pkill -f 'next-server' 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          ready=0
+          for _ in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:3100/; then ready=1; break; fi
+            sleep 1
+          done
+          [ "$ready" = "1" ] || { echo "o servidor não respondeu em 30 s"; cat /tmp/next-start.log; exit 1; }
+
+          code_root=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/)
+          [ "$code_root" = "200" ] || { echo "/ devolveu $code_root"; exit 1; }
+
+          code_health=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/api/health)
+          body=$(curl -s http://127.0.0.1:3100/api/health)
+          echo "/api/health → $code_health $body"
+          case "$code_health" in
+            200 | 503) ;;
+            *) echo "estado inesperado de /api/health: $code_health"; exit 1 ;;
+          esac
+          echo "$body" | grep -q '"service":"velora"' || { echo "payload de health inesperado"; exit 1; }
+
+          headers=$(curl -sI http://127.0.0.1:3100/)
+          for h in x-content-type-options referrer-policy x-frame-options permissions-policy cross-origin-opener-policy; do
+            if ! printf '%s' "$headers" | grep -qi "^$h:"; then
+              echo "cabeçalho em falta: $h"
+              exit 1
+            fi
+          done
+          if printf '%s' "$headers" | grep -qi "^x-powered-by:"; then
+            echo "x-powered-by não deve ser exposto"
+            exit 1
+          fi
+          echo "smoke test + cabeçalhos verificados"
+
+      - name: QG-08 · Vulnerabilidades de dependências
+        run: pnpm audit --audit-level=high
+
+      # Heurística nativa (sem ação de terceiros). A ferramenta pinada entra com a decisão B-09.
+      # Cobre o risco imediato: credencial com formato reconhecível a chegar ao branch.
+      - name: QG-12 · Varrimento de segredos
+        run: |
+          pattern='(AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY|sk-[A-Za-z0-9]{20,}|AIza[0-9A-Za-z_-]{30,}|glpat-[A-Za-z0-9_-]{20,})'
+          if git grep -nIE "$pattern" -- ':!pnpm-lock.yaml'; then
+            echo "::error::possível credencial encontrada no branch"
+            exit 1
+          fi
+          echo "sem padrões de credencial reconhecíveis"
+          if ! git check-ignore -q .env.local; then
+            echo "a política de .gitignore para .env* não está a funcionar"
+            exit 1
+          fi
+          echo "política de .gitignore para .env verificada"
