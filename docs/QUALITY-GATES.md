@@ -234,6 +234,10 @@ A Fase 4 está **em curso**; esta linha existe para que o registo não espere pe
 | `pnpm run budget`                              | **APROVADO**  | partilhado 129 kB/150, total 406,8 kB/520 em 21 _chunks_; `three` **135,1 kB** diferido, `partilhado=false`, `rotas-iniciais=nenhuma` — os mapas procedurais não acrescentaram um _byte_ ao _first-load_, porque são aritmética no _runtime_ do browser, não ficheiros |
 | `docs/FASE-4-REALISMO.md`                      | escrita       | diagnóstico inicial, decisões e o que fica por entregar                                                                                                                                                                                                                |
 
+Execução remota desta etapa: run **40122718997** · workflow `CI` · commit `561369d` ·
+**sucesso** (`gh run list --branch arena/5051ef25-velora`) — os mesmos portões, fora desta máquina.
+https://github.com/valdimiroilidio3/velora-/actions/runs/40122718997
+
 O que **não** foi verificado nesta etapa: aspeto real das superfícies, coerência visual do _tiling_,
 reflexões do ambiente _IBL_, e o efeito dos _presets_ na leitura arquitetónica. Nada disso é
 verificável sem GPU — os casos `M1`–`M5` em `docs/MANUAL-3D-TESTS.md` são obrigatórios antes de
