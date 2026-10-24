@@ -1,4 +1,4 @@
-# VELORA — Arquitetura (referência de Fase 0)
+# VELORA — Arquitetura (referência de Fase 0, atualizada na Fase 2)
 
 > Documento vivo. A Fase 0 define **fronteiras, contratos e limites**; não implementa módulos
 > funcionais. Onde este texto descrever algo que ainda não existe, está marcado como _plano_.
@@ -60,42 +60,73 @@ três tem um único requisito demonstrado. A regra de ativação está em §9.
 
 ## 3. Organização do código
 
-### 3.1 Estrutura alvo (Fase 1+)
+### 3.1 Estrutura real (Depois da Fase 2)
 
 ```
 velora/
-├── .github/workflows/ci.yml        # existe: QG-02…QG-10, QG-12
-├── docs/                           # existe (este diretório)
+├── .github/workflows/ci.yml          # QG-01…QG-12, QG-16, QG-20, QG-21 (ver QUALITY-GATES.md §4.3)
+├── scripts/                          # portões executáveis: check-peer-deps.mjs, bundle-budget.mjs (+ teste dos dois)
+├── docs/                             # este diretório: DESIGN-SYSTEM.md, ADR/0001…0005
 ├── src/
-│   ├── app/                        # existe: única fronteira HTTP
-│   │   ├── (marketing)/            # páginas públicas [plano]
-│   │   ├── (auth)/                 # login/registo [plano F1]
-│   │   ├── (org)/[organizationSlug]/…  # área autenticada, tenant no pathname [plano F1]
-│   │   ├── api/health/route.ts     # existe
-│   │   └── layout.tsx / page.tsx   # existem (estado da fundação)
-│   ├── core/                       # [plano F1] domínio puro — zero imports de Next/BD/rede
-│   │   ├── organizations/ projects/ scenes/ leads/ billing/
-│   ├── server/                     # [plano F1] casos de uso; único ponto que sabe de sessão+tenant
-│   │   └── actions/ services/
-│   ├── db/                         # [plano F1] schema Drizzle, migrações, repositórios, `withTenant()`
-│   ├── integrations/               # [plano F2+] adaptadores de IA / storage / e-mail
-│   ├── components/                 # [plano F1] UI reutilizável (server-first, client onde necessário)
-│   ├── lib/                        # existe: `env.ts` (config validada); utilitários sem política
-│   └── i18n/                       # [plano F1] locales, dicionários, carregamento por idioma
-├── tests/                          # [plano F1] integração/E2E; unitários vivem junto do código
-├── public/                         # [plano F1] assets estáticos versionados
-└── e2e/                            # [plano] Playwright
+│   ├── app/                          # única fronteira HTTP (App Router)
+│   │   ├── layout.tsx / page.tsx     # raiz: arranque de preferências sem flash + landing pública
+│   │   ├── globals.css               # ÚNICA fonte de tokens de design (ver DESIGN-SYSTEM.md)
+│   │   ├── api/health/route.ts       # smoke test de runtime; não lê nem escreve dados
+│   │   ├── acesso/page.tsx           # página de acesso: valida credenciais, NÃO cria sessão
+│   │   ├── error.tsx · not-found.tsx # estados de erro/404 da raiz
+│   │   ├── design-tokens.test.ts     # QG-21 (contraste, paleta, proibições de identidade)
+│   │   └── app/                      # shell autenticado por aparência (sem auth real)
+│   │       ├── layout.tsx · loading.tsx · not-found.tsx · error.tsx
+│   │       ├── page.tsx              # visão geral
+│   │       ├── projetos/             # lista/filtros por URL + [slug] (pré-render ×6)
+│   │       ├── cena/                 # palco 3D isolado (WebGL, fallback, métricas)
+│   │       └── preferencias/         # tema / densidade / movimento (+ mapa de estado das rotas)
+│   ├── components/
+│   │   ├── ui/                       # primitivas de apresentação (button, field, alert, toast, …)
+│   │   ├── layout/                   # shell, nav, cabeçalho, preferências (efeitos + formulário)
+│   │   ├── projects/                 # cartões, linha, toolbar com estado no URL, planta SVG
+│   │   └── scene/                    # volume-scene.ts (imperativo) + scene-stage/view/fallback
+│   ├── config/nav.ts                 # estrutura de navegação + estado por fase (sem ícones)
+│   ├── demo/                         # dados fictícios rotulados + query determinística + volumetria
+│   ├── i18n/pt.ts                    # catálogo das strings de interface (idioma único por enquanto)
+│   └── lib/                          # cn, format (Intl), preferences (+ store), webgl, env, validação de acesso
+├── tests/                            # [plano F4] integração/E2E; unitários vivem junto do código
+├── public/                           # [plano] só quando existir asset binário versionado
+└── src/{core,server,db,integrations}/ # [plano F1+] espaços previstos na §3.2, ainda sem conteúdo
 ```
 
-### 3.2 Regra de dependência (o contrato que a torna possível)
+Não há ficheiros de preenchimento: `src/core`, `src/server`, `src/db` e `src/integrations` **ainda não
+existem** e não foram criados "para a arquitetura se ver". A Fase 2 encheu de facto três dos espaços
+previstos (`components/`, `i18n/`, `lib/`) e criou dois novos com justificação própria (`demo/`,
+`config/`, `components/scene/` + `scripts/`).
 
-| Camada                      | Pode importar                                       | Nunca pode importar                                    |
-| --------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
-| `src/core`                  | só `src/core`, `zod`                                | Next, `src/db`, `src/integrations`, browser APIs       |
-| `src/db`                    | `src/core` (tipos), driver, `src/lib`               | `src/app`, `src/components`                            |
-| `src/integrations`          | `src/core` (ports), SDKs                            | `src/app`                                              |
-| `src/server`                | `src/core`, `src/db`, `src/integrations`, `src/lib` | JSX/componentes                                        |
-| `src/app`, `src/components` | `src/server`, `src/core` (tipos), UI                | `src/db`, `src/integrations` (exceto via `src/server`) |
+### 3.1.1 Para onde vai cada coisa (a regra que evita o monólito)
+
+| Pergunta                                       | Resposta hoje                                                                                                                                                                               |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Onde vive uma string de interface?             | `src/i18n/pt.ts`. Um rótulo escrito dentro de um `.tsx` é defeito de revisão.                                                                                                               |
+| Onde vive um dado de demonstração?             | `src/demo/**`, sempre com `isDemo`/`DEMO_NOTICE`. Uma página nunca declara um número de exemplo no JSX.                                                                                     |
+| Onde vive geometria?                           | `src/demo/massing.ts` produz o `Massing`; `components/scene/volume-scene.ts` renderiza-o; `components/projects/plan-drawing.tsx` desenha-o em SVG. Uma descrição, três consumidores.        |
+| Onde vive estado de cliente?                   | Módulos com `useSyncExternalStore` (`lib/preferences-store.ts`) ou o próprio URL (`components/projects/search-events.ts`). Não há biblioteca de estado nem contexto para dados de servidor. |
+| Onde vai parar um caso de uso real?            | `src/server/` (com `src/core` por baixo) quando existir persistência; os componentes de hoje chamariam esse módulo, não `src/demo`.                                                         |
+| Onde entram integrações (IA, storage, e-mail)? | `src/integrations/` atrás de um _port_ em `src/core`; a UI não conhece SDKs. A fronteira está descrita em §8 e em `SECURITY.md` §6; nenhuma implementação existe.                           | ### 3.2 Regra de dependência (o contrato que a torna possível) |
+
+| Camada                                   | Pode importar                                       | Nunca pode importar                                    |
+| ---------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| `src/core`                               | só `src/core`, `zod`                                | Next, `src/db`, `src/integrations`, browser APIs       |
+| `src/db`                                 | `src/core` (tipos), driver, `src/lib`               | `src/app`, `src/components`                            |
+| `src/integrations`                       | `src/core` (ports), SDKs                            | `src/app`                                              |
+| `src/server`                             | `src/core`, `src/db`, `src/integrations`, `src/lib` | JSX/componentes                                        |
+| `src/app`, `src/components`              | `src/server`, `src/core` (tipos), UI                | `src/db`, `src/integrations` (exceto via `src/server`) |
+| `src/components/ui`                      | `src/lib`, `src/i18n`, React                        | `src/demo`, `src/config`, rotas, `three`               |
+| `src/components/{layout,projects,scene}` | `ui`, `lib`, `demo`, `config`, `i18n`               | outros grupos de componentes; `src/app`                |
+| `src/demo`, `src/config`, `src/i18n`     | tipos de `src/lib`, `zod`                           | React, `three`, DOM — têm de poder correr no Node      |
+| `src/lib`                                | `src/lib`                                           | React DOM no servidor, `src/components`, dados de demo |
+| `src/three` (previsto, F3)               | `src/core` (dados de cena)                          | React, Next                                            |
+
+A regra é verificada a dois níveis: os testes de contrato (`design-tokens.test.ts` varre `src/**` à
+procura de cores literais; `nav.test.ts` proíbe o catálogo de navegação de importar ícones) e o
+orçamento de bundle (QG-20), que falha se uma dependência de renderização entrar no chunk partilhado.
 
 Obrigação de a tornar mecânica na Fase 1 (e não só escrita): regra de `import/no-restricted-paths`
 ou `eslint-plugin-boundaries` + teste de arquitetura. Enquanto for apenas convenção, é
@@ -112,7 +143,7 @@ documentada como **não verificada**.
 - **`src/db`**: esquema, migrações, transações, políticas de RLS, paginação. Não decide regras.
 - **`src/integrations`**: retry/timeouts, limites de custo, transformação para tipos do domínio.
 
-### 3.4 O que já existe (Fase 0), e porquê
+### 3.4 O que já existe (Fases 0 e 2), e porquê
 
 | Ficheiro                                          | Justificação                                                                                                                              |
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
@@ -121,7 +152,13 @@ documentada como **não verificada**.
 | `src/lib/env.ts`                                  | Validação de configuração com falha-rápida sem exposição de valores. É a fronteira da gestão de configuração (§5).                        |
 | `src/lib/env.test.ts`                             | 14 testes: comportamento do schema + contrato com `.env.example` (QG-11).                                                                 |
 
-Nada do que existe hoje contém: dashboard, editor, geração por IA, 3D, autenticação ou persistência.
+| `src/components/ui/**` (9 primitivas) | Toda a superfície de estados (foco, erro, vazio, carregamento, selecção) foi desenhada uma vez, testada 14× e reutilizada em 7 rotas. Sem isto cada página reinventaria botões. |
+| `src/components/scene/**` + `src/lib/webgl.ts` | Pedidos de Fase 2 exigiam 3D **com** gestão de contexto, fallback e limites móveis. `ADR 0004`. |
+| `src/demo/**` | O produto não tem base de dados: os dados de demonstração precisam de ser tipados, rotulados e determinísticos, não literais no JSX. |
+| `scripts/check-peer-deps.mjs` · `bundle-budget.mjs` | Portões QG-09 (com allowlist nomeada) e QG-20; cada um tem teste próprio (`scripts/gates.test.mjs`). |
+
+Nada do que existe hoje contém: persistência, autenticação real, multi-tenancy, geração por IA,
+importação de plantas, editor de geometria, exportação IFC ou cobrança.
 
 ---
 
@@ -194,7 +231,8 @@ para logs; (d) `try/catch` só onde há fronteira — não em cada função.
 ## 7. Estratégia de renderização e de dados
 
 - **Server Components por omissão**; `"use client"` apenas onde há interação (canvas, editor,
-  formulários com estado de cliente). Orçamento: JS inicial do shell < 170 KB gzip (a confirmar em F1).
+  formulários com estado de cliente). Orçamento **medido na Fase 2**: chunk partilhado do shell 128,9 kB gzip, primeiro carregamento por
+  rota 185–203 kB, total de cliente 359,5 kB (limites 150/240/520 kB, `pnpm run budget`).
 - **Mutações**: server actions para operações simples; route handlers quando for preciso streaming,
   uploads `multipart` ou chamadas de terceiros. Sempre com validação de origem/payload e verificação
   de papel no servidor.
@@ -206,7 +244,13 @@ para logs; (d) `try/catch` só onde há fronteira — não em cada função.
 
 ---
 
-## 8. Camada 3D/BIM (contrato futuro — nada implementado)
+## 8. Camada 3D/BIM (primeira camada implementada na Fase 2)
+
+Estado: **existe uma cena WebGL real com volumetria procedural** (`components/scene/`), alimentada por
+um `Massing` derivado de um `SceneSeed` declarativo. Isto **não** é um modelo BIM nem uma planta
+certificada — e a própria interface o diz (`ADR 0004` §2.11). Os limites abaixo continuam a ser os
+contratos para as fases seguintes; o ponto 1 está parcial (o `SceneSeed` é o esboço desse formato, mas
+ainda não tem `schemaVersion` nem ficheiro `.schema.json` — não há importação nem persistência).
 
 Limites que aceitamos **já**, para não termos de reescrever depois:
 
@@ -227,17 +271,17 @@ Limites que aceitamos **já**, para não termos de reescrever depois:
 
 ## 9. O que não deve ser antecipado (e como sabemos que chegou a hora)
 
-| Não construir agora    | Gatilho de ativação                                                           |
-| ---------------------- | ----------------------------------------------------------------------------- |
-| ORM/migrações/esquema  | Primeiro endpoint que precise de persistir entre restarts (Fase 1)            |
-| Autenticação completa  | Primeiro dado que não possa ser público (Fase 1)                              |
-| Fila/worker externo    | Tarefa que não caiba em 300 s de função serverless (IA em massa, exportações) |
-| Microsserviços         | Dois módulos com escalas/SLAs incompatíveis e fronteira estável medida        |
-| Cache distribuído      | P95 de leitura de projeto > 300 ms com índices corretos                       |
-| Camada 3D              | Existir um modelo paramétrico serializado para renderizar (Fase 3)            |
-| Sistema de design      | Existirem 3 ecrãs reais para extrair padrões (Fase 1)                         |
-| Pagamentos recorrentes | Primeiro cliente pronto a pagar + decisão de plano (Fase 5)                   |
-| Infra Terraform/K8s    | Custos/scope que o justifiquem por escrito                                    |
+| Não construir agora    | Gatilho de ativação                                                                                                                           |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| ORM/migrações/esquema  | Primeiro endpoint que precise de persistir entre restarts (Fase 1)                                                                            |
+| Autenticação completa  | Primeiro dado que não possa ser público (Fase 1)                                                                                              |
+| Fila/worker externo    | Tarefa que não caiba em 300 s de função serverless (IA em massa, exportações)                                                                 |
+| Microsserviços         | Dois módulos com escalas/SLAs incompatíveis e fronteira estável medida                                                                        |
+| Cache distribuído      | P95 de leitura de projeto > 300 ms com índices corretos                                                                                       |
+| Camada 3D              | ✅ **ativado na Fase 2** — existe volumetria paramétrica (`Massing`) renderizada; o próximo degrau é seleção/edição sobre um documento tipado |
+| Sistema de design      | ✅ **ativado na Fase 2** — 7 superfícies reais, tokens únicos, contrato automatizado (QG-21)                                                  |
+| Pagamentos recorrentes | Primeiro cliente pronto a pagar + decisão de plano (Fase 5)                                                                                   |
+| Infra Terraform/K8s    | Custos/scope que o justifiquem por escrito                                                                                                    |
 
 ---
 

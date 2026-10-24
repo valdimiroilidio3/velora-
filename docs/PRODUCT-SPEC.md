@@ -1,4 +1,4 @@
-# VELORA — Especificação de Produto (Fase 0)
+# VELORA — Especificação de Produto (Fase 0; estado da Fase 2 em §7.1.1 e §10)
 
 > Âmbito: visão, utilizadores, jornadas, âmbito futuro, restrições e critérios de sucesso.
 > Este documento **não** especifica ecrãs nem implementa módulos. Cada afirmação está marcada como
@@ -97,20 +97,20 @@ a existência de gates entre fases.)
 
 ## 5. Requisitos aprovados (Fase 0 → produto)
 
-| ID   | Requisito                                                                       | Onde é verificado                       |
-| ---- | ------------------------------------------------------------------------------- | --------------------------------------- |
-| R-01 | SaaS multi-tenant com isolamento estrutural por organização                     | `SECURITY.md` §3 + QG-15 (pendente)     |
-| R-02 | Criação assistida por IA a partir de texto, imagens, plantas e ficheiros        | `DATA-MODEL.md` §3.10 (Fase 3)          |
-| R-03 | Edifícios com interiores e exteriores, edição tipo construtor + BIM progressivo | `ARCHITECTURE.md` §8 (Fases 2–3)        |
-| R-04 | Visualização 3D em tempo real no navegador, sem plugin                          | Three.js na Fase 3, com orçamento QG-19 |
-| R-05 | Experiências cinematográficas e visitas guiadas partilháveis                    | F4, `share_link`/`visit_session`        |
-| R-06 | Gestão de empreendimentos, leads e pedidos de contacto                          | F5                                      |
-| R-07 | Espaços privados por organização com papéis                                     | F1                                      |
-| R-08 | Planos por projeto com ativação manual inicial                                  | F5, `DATA-MODEL.md` §3.13               |
-| R-09 | i18n completa (UI + conteúdo)                                                   | `ARCHITECTURE.md` §10                   |
-| R-10 | Interface web responsiva e experiência profissional                             | F1+ com QG-16/QG-18                     |
-| R-11 | Segurança, testes, desempenho e acessibilidade adequados a produto comercial    | `QUALITY-GATES.md`                      |
-| R-12 | Orçamento inicial 0 € e sem dependência de serviços pagos sem decisão explícita | `DEPLOYMENT.md`                         |
+| ID   | Requisito                                                                       | Onde é verificado                                                                              |
+| ---- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| R-01 | SaaS multi-tenant com isolamento estrutural por organização                     | `SECURITY.md` §3 + QG-15 (pendente)                                                            |
+| R-02 | Criação assistida por IA a partir de texto, imagens, plantas e ficheiros        | `DATA-MODEL.md` §3.10 (Fase 3)                                                                 |
+| R-03 | Edifícios com interiores e exteriores, edição tipo construtor + BIM progressivo | Fase 2 entregou volumetria + planta SVG; edição continua em F3 (`ADR 0004`)                    |
+| R-04 | Visualização 3D em tempo real no navegador, sem plugin                          | ✅ implementado na Fase 2 (`/app/cena`, `/app/projetos/[slug]`); QG-19 espera dispositivo real |
+| R-05 | Experiências cinematográficas e visitas guiadas partilháveis                    | F4, `share_link`/`visit_session`                                                               |
+| R-06 | Gestão de empreendimentos, leads e pedidos de contacto                          | F5                                                                                             |
+| R-07 | Espaços privados por organização com papéis                                     | F1                                                                                             |
+| R-08 | Planos por projeto com ativação manual inicial                                  | F5, `DATA-MODEL.md` §3.13                                                                      |
+| R-09 | i18n completa (UI + conteúdo)                                                   | `ARCHITECTURE.md` §10                                                                          |
+| R-10 | Interface web responsiva e experiência profissional                             | QG-16 (axe, desde a F2) + QG-18 (pendente, sem browser)                                        |
+| R-11 | Segurança, testes, desempenho e acessibilidade adequados a produto comercial    | `QUALITY-GATES.md`                                                                             |
+| R-12 | Orçamento inicial 0 € e sem dependência de serviços pagos sem decisão explícita | `DEPLOYMENT.md`                                                                                |
 
 ---
 
@@ -137,6 +137,24 @@ a existência de gates entre fases.)
   criada e coerente; comandos aplicáveis executados com resultado registado; zero módulos funcionais
   fora do âmbito. Verificados em `QUALITY-GATES.md` §4 — critérios 1 a 10 da matriz de aceitação do
   pedido.
+
+### 7.1.1 Da Fase 2 (aplicação-base, sistema de design e experiência visual)
+
+Critérios de aceitação do pedido da Fase 2 e estado real, cada um com o comando que o sustenta
+(evidência completa em `QUALITY-GATES.md` §4.3):
+
+| #   | Critério                                        | Estado                    | Evidência                                                                                                                             |
+| --- | ----------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Estrutura de rotas definida                     | ✅                        | 10 rotas no manifesto da build; 12 páginas pré-renderizadas                                                                           |
+| 2   | Sistema de design reutilizável e documentado    | ✅                        | `DESIGN-SYSTEM.md` + 128 tokens em `globals.css` + QG-21 (31 asserções)                                                               |
+| 3   | Navegação e interacções a funcionar             | ✅                        | `next/link` + `aria-current`; filtros por URL com estado reversível; testes de projeto 12/12                                          |
+| 4   | Vistas principais responsivas                   | ✅ (parcial: sem browser) | breakpoints + contentores em tokens; verificação por inspeção de CSS, não por medição                                                 |
+| 5   | Dados de demonstração claramente rotulados      | ✅                        | `DemoBadge`/`DemoNotice` em todas as superfícies; `isDemo` no tipo; 6 projetos fictícios com `DEMO-0x`                                |
+| 6   | 3D com gestão de falha e libertação de recursos | ✅ (parcial: sem GPU)     | `dispose()` + `forceContextLoss()` + `webglcontextlost` → alternativa não-gráfica; `useSyncExternalStore` com `"unknown"` no servidor |
+| 7   | typecheck / lint / testes / build executados    | ✅                        | `pnpm run verify` exit 0; 153 testes; build sem erros                                                                                 |
+| 8   | Sem segredos no repositório                     | ✅                        | QG-12; nenhum valor de ambiente novo foi preciso                                                                                      |
+| 9   | Nenhum serviço de produção simulado             | ✅                        | `/acesso` valida e **não** cria sessão; sem persistência além de `localStorage`; sem chamadas de rede                                 |
+| 10  | Relatório separa real / demo / pendente         | ✅                        | este §7.1.1, `§10` abaixo, e a secção "Limitações" do relatório da fase                                                               |
 
 ### 7.2 Do produto (métricas a validar com utilizadores reais; **[Hipótese]** até haver tráfego)
 
@@ -187,3 +205,21 @@ trabalho de engenharia decidir bases legais).
 6. O repositório deve passar a privado com o custo de 2 000 min/mês de Actions ou mantemos público?
    (ver `DEPLOYMENT.md` §2.1/§4)
 7. Existe servidor/equipa para self-hosting se um free tier mudar de preço?
+
+---
+
+## 10. Estado por superfície (Depois da Fase 2)
+
+Legenda — **Real**: comportamento implementado e testado · **Demo**: dados/estado fictício rotulado ·
+**Pendente**: fronteira preparada, implementação em fase seguinte.
+
+| Superfície             | O que faz                                                                                         | Real                                                                       | Demo                                                 | Pendente                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------- |
+| `/` (landing)          | Posicionamento, maquete hero em SVG, estados de marca                                             | tipografia/tokens, `PlanDrawing`, navegação                                | projetos e números mostrados                         | fotografia real, copy final                             |
+| `/acesso`              | Formulário com validação de cliente, estados de erro, aviso de que não há autenticação            | validação com Zod (`lib/access-validation.ts`), foco de erro, `role=alert` | conta "demo" aceite (ana.duarte@example.invalid)     | sessão, cookies, MFA, recuperação de palavra-passe (F1) |
+| `/app`                 | Visão geral com contadores derivados dos dados demo e lista de próximos passos por fase           | agregações em `demo/query.ts`                                              | os dados em si                                       | KPIs reais, atividade, tarefas                          |
+| `/app/projetos`        | Lista/grelha, pesquisa com debounce, filtros por cidade/estado/ordenação, estados vazio e de erro | URL como estado (funciona sem JS), 6 projetos, `aria-live`                 | localização, preços, estados                         | paginação de servidor, permissões, edição               |
+| `/app/projetos/[slug]` | Ficha com resumo, tipologias, áreas, versões demo, planta SVG e cena 3D                           | pré-render por slug (6 páginas), cópia de referência                       | medidas e datas                                      | upload de plantas, materiais, Partilhar (F4)            |
+| `/app/cena`            | Palco 3D com presets de vista, órbita limitada, métricas de render e alternativa não-gráfica      | `three@0.186.1`, WebGL gate, `dispose()`, contexto perdido → fallback      | volumetria derivada de `SceneSeed`                   | seleção, edição, materiais PBR, LOD (F3)                |
+| `/app/preferencias`    | Tema, densidade e movimento, com mapa do estado das rotas                                         | persistência em `localStorage` + arranque sem flash                        | o mapa de estado (reflete o repo, não um utilizador) | preferências por conta (F1, com autenticação)           |
+| 404 / erro             | Páginas de estado para raiz e para o shell                                                        | navegação de volta, tom sem alarmismo                                      | —                                                    | relatório de erros (F4)                                 |

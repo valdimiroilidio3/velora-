@@ -1,6 +1,13 @@
 # ADR 0001 — Arquitetura inicial, ferramenta de qualidade e limites da Fase 0
 
-- **Estado**: Aceite (parcialmente Implementado — ver §Verificação)
+> **Substituído em parte pela `ADR 0005`** (Fase 2, 2026-10-24): a decisão 3 de qualidade fixava
+> ESLint 9.39.5 e não previa portão de peers com exceções nem orçamento de bundle; a Fase 2 subiu
+> para ESLint 10.13.0 e acrescentou `pnpm run peers` + `pnpm run budget` + QG-20/QG-21. O resto
+> deste ADR — monolito modular, pnpm/Corepack, `allowBuilds`, política de configuração, adiamento de
+> persistência e de fornecedores — mantém-se em vigor. O texto abaixo **não foi reescrito**: é o
+> registo do que se sabia a 2026-10-24 de manhã.
+
+- **Estado**: Aceite (parcialmente Implementado — ver §Verificação); §2.3 substituído pela `ADR 0005`
 - **Data**: 2026-10-24
 - **Impacto de fase**: Fase 0 (condiciona F1–F6)
 - **Decisão tomada por**: agente técnico (Arena) no âmbito do pedido de Fase 0; decisões que exigem

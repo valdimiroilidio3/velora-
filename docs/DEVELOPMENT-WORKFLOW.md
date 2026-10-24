@@ -1,5 +1,9 @@
 # VELORA — Fluxo de trabalho de desenvolvimento
 
+> Atualizado na Fase 2: o comboio `verify` passou a ter 7 passos (peers, tipos, lint, formatação,
+> testes, build, orçamento de bundle) e existem dois portões novos (QG-20 bundle, QG-21 tokens) e um
+> contrato de acessibilidade automatizado (QG-16). Ver `QUALITY-GATES.md` §2.
+
 > Como se trabalha neste repositório. Destina-se a manter a qualidade e a segurança à medida que o
 > projeto cresce, sem depender da memória de quem começou.
 
@@ -34,21 +38,35 @@
 corepack enable pnpm
 # 2. Instalação reproduzível (bloqueia scripts de build de dependências)
 pnpm install --frozen-lockfile
-# 3. Configuração local (o repo não precisa de segredos na Fase 0)
+# 3. Configuração local (o repo não precisa de segredos — nem na Fase 0 nem na 2)
 cp .env.example .env.local     # editar apenas o que for preciso
 # 4. Trabalhar
-pnpm dev                       # http://localhost:3000
-pnpm run verify                # typecheck + lint + format:check + test + build
+pnpm dev                       # http://localhost:3000  · /  · /acesso  · /app  · /app/projetos  · /app/cena  · /app/preferencias
+pnpm run verify                # peers → typecheck → lint → format:check → test → build → budget
+pnpm run test:watch            # mesma suite em modo watch, dois projetos (node, dom)
+pnpm run test:a11y             # só o projeto de DOM, com axe-core (QG-16)
+pnpm run budget                # orçamento de bundle, precisa de `next build` anterior (QG-20)
+pnpm run peers                 # portão de peers com allowlist nomeada (QG-09)
 pnpm audit --audit-level=high
 ```
 
-Sem base de dados na Fase 0: nada é preciso subir além do Node. A partir da Fase 1, adicionar
+Sem base de dados na Fase 2: nada é preciso subir além do Node. A partir da Fase 1, adicionar
 `docker compose up -d postgres` (ficheiro a criar com ADR/`docs/RUNBOOK.md`) ou o `DATABASE_URL` de
 um serviço — e o `.env.local` passa a ter uma base dedicada, nunca partilhada.
 
 ## 4. Definition of Done (por PR)
 
-- [ ] `pnpm run verify` verde (ou o job de CI correspondente no PR).
+- [ ] `pnpm run verify` verde (ou o job de CI correspondente no PR) — os 7 passos, sem atalhos.
+- [ ] UI: nenhum valor de design escrito fora de `src/app/globals.css`; cores novas entram com linha
+      em `DESIGN-SYSTEM.md` §3 e asserção em `design-tokens.test.ts` (QG-21).
+- [ ] Componente novo ⇒ teste no projeto de DOM correspondente; comportamento de teclado, foco e
+      nomes acessíveis são parte do teste, não do manual.
+- [ ] Nada de `setState` no corpo de um `useEffect` nem leitura de `ref.current` no render
+      (React 19 + `react-hooks` 7): usar `useSyncExternalStore`, estado no URL ou handler.
+- [ ] 3D/WebGL: qualquer código que crie contexto tem de criar também o seu oposto no mesmo PR
+      (`dispose()`, listeners, observadores, `requestAnimationFrame`) e ter alternativa não-gráfica.
+- [ ] Dado fictício ⇒ rotulado como demo (tipo + componente `DemoBadge`/`DemoNotice`) e nunca em
+      linguagem de cliente real.
 - [ ] Nenhum gate enfraquecido: sem `eslint-disable` em bloco, sem `@ts-expect-error` sem justificação,
       sem `test.skip`, sem `--no-verify`.
 - [ ] Documentação sincronizada: `DEPENDENCIES.md` (pacotes), `QUALITY-GATES.md` (estados),
@@ -90,6 +108,11 @@ funcionamento.
   existir, a revisão de código aplica-a.
 - Erros: exceções de domínio tipadas, sem mensagens técnicas para o cliente (`ARCHITECTURE.md` §6.1).
 - Zero `any`; `unknown` + narrowing (com `useUnknownInCatchVariables` ativo o `catch` já obriga).
+- Importações de tipo com `import type` (regra `consistent-type-imports`), `verbatimModuleSyntax` ativo.
+- `no-console` é erro em `src/**`; os `scripts/**` de CI podem escrever no stdout (é a saída do portão)
+  e têm override próprio no `eslint.config.mjs` — a exceção é nomeada e limitada a esse diretório.
+- Strings de UI só via `ui.*` do catálogo PT; uma chave não usada é eliminada, uma chave com dois
+  significados é dividida (foi assim que `actions.clearFilters`/`actions.clearSearch` se separaram).
 - Nada de "TODO" sem dono: `TODO(Fase)(D-ID): …` a apontar para um item das tabelas de decisões.
 
 ## 7. Dependências e fornecedor
@@ -97,7 +120,9 @@ funcionamento.
 1. Regra de entrada: só se instala quando um requisito da fase o exige (ver `DEPENDENCIES.md` §2 e §4).
 2. Antes de aprovar um `postinstall` de dependência ⇒ alterar `pnpm-workspace.yaml` com justificação
    (gate QG-10 lê isto; `pnpm permissions` tem de continuar "Denied" para tudo o que não for aprovado).
-3. `pnpm audit`, `pnpm peers check`, versões `latest` verificadas no registo (não em blogues).
+3. `pnpm audit`, `pnpm run peers` (o portão, não o `pnpm peers check` nu), versões `latest`
+   verificadas no registo (não em blogues) — o registo é o que este ambiente consegue alcançar, e é
+   por isso que as tabelas de `DEPENDENCIES.md` citam o dia em que foram lidas.
 4. Atualizações de `next`/`eslint-config-next`/`typescript` entram em PR isolado (o `eslint-config-next`
    é publicado emparelhado com o `next` — manter espelhados).
 5. Um pacote "gratuito para sempre" só é aceite como tal se os termos estiverem registados na tabela de
@@ -130,7 +155,9 @@ funcionamento.
 | Coisa                           | Onde                                                                              |
 | ------------------------------- | --------------------------------------------------------------------------------- |
 | Decisão estrutural              | `docs/ADR/NNNN-*.md`                                                              |
-| Estado de qualidade real        | `docs/QUALITY-GATES.md` §4                                                        |
+| Estado de qualidade real        | `docs/QUALITY-GATES.md` §4 (Fase 0) e §4.3 (Fase 2)                               |
+| Token, componente, estado de UI | `docs/DESIGN-SYSTEM.md`                                                           |
+| Fronteira 3D/BIM                | `docs/ADR/0004-camada-3d.md` + `ARCHITECTURE.md` §8                               |
 | Dependência adicionada/recusada | `docs/DEPENDENCIES.md`                                                            |
 | Entidade/campo novo             | `docs/DATA-MODEL.md` (antes da migração)                                          |
 | Requisito novo ou hipótese      | `docs/PRODUCT-SPEC.md` §1/§5/§6, com marcador `[Aprovado]/[Hipótese]/[Em aberto]` |

@@ -3,10 +3,11 @@
 **SaaS internacional para criar, apresentar e comercializar empreendimentos imobiliários** com
 geração assistida por IA, modelação BIM progressiva e experiências 3D interativas no navegador.
 
-> **Estado atual: Fase 0 concluída localmente — fundação técnica, documentada e verificada.**
-> Não existe ainda nenhum módulo funcional: nada de dashboard, editor, geração por IA, 3D,
-> autenticação, base de dados, planos ou pagamentos. Ver §[Estado real](#estado-real) e
-> `docs/QUALITY-GATES.md`.
+> **Estado atual: Fase 2 concluída localmente — aplicação-base, sistema de design e camada 3D de
+> demonstração, com evidência executada.** Existem rotas, componentes, tokens, uma cena WebGL e dados
+> de demonstração rotulados. **Não** existe: autenticação real, persistência, multi-tenancy, editor de
+> geometria, importação de plantas, IA, pagamentos nem publicação. Ver §[Estado real](#estado-real)
+> e `docs/QUALITY-GATES.md` §4.3.
 
 ---
 
@@ -22,16 +23,19 @@ Detalhe, personas, jornadas, âmbito e critérios de sucesso: `docs/PRODUCT-SPEC
 
 ## Stack técnica (versões fixadas a 2026-10-24, lidas no registo npm)
 
-| Camada        | Escolha                                                                        | Onde está a justificação                |
-| ------------- | ------------------------------------------------------------------------------ | --------------------------------------- |
-| Aplicação     | Next.js **16.4.3** (App Router, Turbopack) + React **19.3.1**                  | `docs/ADR/0001`, `docs/DEPENDENCIES.md` |
-| Linguagem     | TypeScript **5.9.3** com `strict` + regras duras                               | `docs/ARCHITECTURE.md`                  |
-| Validação     | Zod **4.6.7** (configuração agora; todas as fronteiras na Fase 1)              | `src/lib/env.ts`                        |
-| Qualidade     | ESLint **9.39.5** + `eslint-config-next` 16.4.3, Prettier 3.9.10, Vitest 5.0.5 | `docs/QUALITY-GATES.md`                 |
-| Pacotes       | pnpm **12.15.0** via Corepack, lockfile commitizado, `allowBuilds` restrito    | `docs/DEPENDENCIES.md` §4               |
-| Base de dados | PostgreSQL + Drizzle — **decidido, adiado para a Fase 1** (nada instalado)     | `docs/DATA-MODEL.md` §7                 |
-| 3D            | Three.js — **Fase 3** (nada instalado)                                         | `docs/ARCHITECTURE.md` §8               |
-| Alojamento    | Vercel para dev/preview; alojamento de uso **comercial** é decisão pendente    | `docs/DEPLOYMENT.md` §2                 |
+| Camada        | Escolha                                                                         | Onde está a justificação                   |
+| ------------- | ------------------------------------------------------------------------------- | ------------------------------------------ |
+| Aplicação     | Next.js **16.4.3** (App Router, Turbopack) + React **19.3.1**                   | `docs/ADR/0001`, `docs/DEPENDENCIES.md`    |
+| Linguagem     | TypeScript **5.9.3** com `strict` + regras duras                                | `docs/ARCHITECTURE.md`                     |
+| Validação     | Zod **4.6.7** (configuração agora; todas as fronteiras na Fase 1)               | `src/lib/env.ts`                           |
+| Qualidade     | ESLint **10.13.0** + `eslint-config-next` 16.4.3, Prettier 3.9.10               | `docs/ADR/0005`, `docs/QUALITY-GATES.md`   |
+| Interface     | Tailwind CSS **4.3.3** com 128 tokens em `src/app/globals.css`                  | `docs/DESIGN-SYSTEM.md`, `docs/ADR/0003`   |
+| Testes        | Vitest 5.0.5 em 2 projetos (`node`, `dom`/jsdom) + Testing Library + `axe-core` | `docs/QUALITY-GATES.md` §4.3               |
+| Ícones        | `lucide-react` 1.61.0 (ISC)                                                     | `docs/DEPENDENCIES.md` §1.2                |
+| Pacotes       | pnpm **12.15.0** via Corepack, lockfile commitizado, `allowBuilds` restrito     | `docs/DEPENDENCIES.md` §4                  |
+| Base de dados | PostgreSQL + Drizzle — **decidido, adiado para a Fase 1** (nada instalado)      | `docs/DATA-MODEL.md` §7                    |
+| 3D            | Three.js **0.186.1** — volumetria WebGL com alternativa não-gráfica             | `docs/ADR/0004`, `docs/ARCHITECTURE.md` §8 |
+| Alojamento    | Vercel para dev/preview; alojamento de uso **comercial** é decisão pendente     | `docs/DEPLOYMENT.md` §2                    |
 
 Multi-tenancy: uma base partilhada, isolamento por organização com Row-Level Security; a política, a
 configuração correta do contexto de tenant e os testes exigidos estão em `docs/SECURITY.md` §3.
@@ -40,7 +44,8 @@ configuração correta do contexto de tenant e os testes exigidos estão em `doc
 
 - Node.js **≥ 22.12** (ver `.nvmrc`; o mínimo é o cruzamento dos `engines` de Next/Vitest/ESLint).
 - pnpm: fornecido pelo **Corepack** através do campo `packageManager` — `corepack enable pnpm`.
-- Git 2.x. Docker/base de dados: **não** são precisos na Fase 0.
+- Git 2.x. Docker/base de dados: **não** são precisos na Fase 2 — não há persistência.
+- Browser com WebGL 2 para ver a cena; sem WebGL a vista degrada para planta + tabela de pisos.
 - Nada de contas pagas: a fundação corre sem qualquer serviço externo.
 
 ## Instalação e execução local
@@ -50,6 +55,19 @@ corepack enable pnpm
 pnpm install --frozen-lockfile
 pnpm dev            # http://localhost:3000
 ```
+
+Rotas para percorrer (todas com dados de demonstração rotulados):
+
+| Rota                   | O que mostra                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------- |
+| `/`                    | landing com posicionamento e maquete vetorial de marca                                   |
+| `/acesso`              | formulário com validação real — **não** cria sessão nem simula autenticação              |
+| `/app`                 | shell com barra lateral adaptativa, cabeçalho contextual e visão geral                   |
+| `/app/projetos`        | lista/grelha com pesquisa e filtros no URL (funcionam sem JavaScript) + estado vazio     |
+| `/app/projetos/<slug>` | ficha de projeto com planta SVG, medidas e cena 3D                                       |
+| `/app/cena`            | palco 3D: presets de vista, órbita limitada, métricas de render, alternativa não-gráfica |
+| `/app/preferencias`    | tema, densidade e movimento (só em `localStorage`) + mapa do estado das rotas            |
+| `/api/health`          | verificação de runtime (config + headers de segurança)                                   |
 
 Build de produção e verificação de runtime (o que a Fase 0 executa como gate QG-06/QG-07):
 
@@ -80,15 +98,18 @@ para correr em desenvolvimento.
 | `pnpm run typecheck`            | `tsc --noEmit` com `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `useUnknownInCatchVariables` |
 | `pnpm run lint`                 | ESLint (regras Next + react-hooks + jsx-a11y + typescript-eslint) — **sem desativações em bloco**           |
 | `pnpm run format:check`         | Prettier                                                                                                    |
-| `pnpm run test`                 | Vitest (14 testes nesta fase)                                                                               |
+| `pnpm run test`                 | Vitest — **14 ficheiros, 153 testes** (113 em Node, 40 em jsdom)                                            |
+| `pnpm run test:a11y`            | só o projeto de DOM, com varrimento `axe-core` (QG-16)                                                      |
+| `pnpm run budget`               | orçamento de bundle em gzip: partilhado 150 kB · first-load 240 kB · total 520 kB (QG-20)                   |
 | `pnpm run build`                | Build de produção (Turbopack)                                                                               |
-| `pnpm run verify`               | typecheck → lint → format → test → build                                                                    |
+| `pnpm run verify`               | peers → typecheck → lint → format:check → test → build → budget                                             |
 | `pnpm audit --audit-level=high` | vulnerabilidades conhecidas do grafo                                                                        |
-| `pnpm peers check`              | compatibilidade de peer dependencies                                                                        |
+| `pnpm run peers`                | portão de peers com allowlist nomeada: falha em achado novo **e** em exceção obsoleta                       |
 | `pnpm permissions`              | política de scripts de build de dependências (`Denied: unrs-resolver build`)                                |
 
-Gates pendentes/bloqueados por inexistência de objeto (BD, UI real, 3D): QG-13 a QG-19 em
-`docs/QUALITY-GATES.md`.
+Estado de cada portão — incluindo o que **não** pôde ser executado aqui (QG-17 E2E, QG-18
+Lighthouse, QG-19 desempenho 3D por dispositivo por falta de GPU/browser; QG-14/QG-15 por falta de
+base de dados) — em `docs/QUALITY-GATES.md` §2 e §4.3.
 
 ## Estratégia de versionamento
 
@@ -101,7 +122,23 @@ Gates pendentes/bloqueados por inexistência de objeto (BD, UI real, 3D): QG-13 
 
 ## Estado real do que existe
 
-**Implementado e executado nesta fase (com evidência em `docs/QUALITY-GATES.md` §4):**
+**Implementado e executado na Fase 2** (evidência por portão em `docs/QUALITY-GATES.md` §4.3):
+
+- **7 rotas de produto** + `/api/health`, com estados de carregamento, erro e 404 por segmento.
+- **Sistema de design** — 128 tokens num único ficheiro, tema claro/escuro, duas densidades,
+  movimento reduzido, 9 primitivas de UI testadas, contrato de contraste automatizado (QG-21) e
+  contrato de identidade (sem gradientes, um único acento, três níveis de sombra).
+- **Camada 3D** — `three@0.186.1` com volumetria procedural determinística, controlos de câmera com
+  limites, `dispose()` + `forceContextLoss()`, alternativa não-gráfica seleccionável e leitura de
+  fps/triângulos/`drawCalls` no palco. `three` fica fora do chunk partilhado (134,5 kB diferidos).
+- **Dados de demonstração** — 6 empreendimentos fictícios tipados (`DEMO-01…06`) com
+  `DemoBadge`/`DemoNotice` em cada superfície; nada é apresentado como dado de cliente.
+- **Ferramenta alargada** — ESLint 10, dois projetos de teste, `axe-core`, portão de peers com
+  exceções escritas, portão de orçamento de bundle, 153 testes; os mesmos comandos em CI.
+- **Documentação** — `docs/DESIGN-SYSTEM.md` + `ADR 0003`/`0004`/`0005`, com os documentos da
+  Fase 0 atualizados para o estado real (arquitetura, produto, dependências, qualidade, workflow).
+
+**Implementado na Fase 0 (mantém-se):**
 
 - 9 documentos de decisão (`docs/`) + 1 ADR + template de ADR.
 - Configuração completa da ferramenta: `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`,
@@ -121,7 +158,8 @@ Gates pendentes/bloqueados por inexistência de objeto (BD, UI real, 3D): QG-13 
 - PostgreSQL, ORM, migrações, RLS, testes de isolamento entre tenants.
 - Uploads/gerestão de ficheiros (validação por conteúdo, URLs pré-assinadas, EXIF).
 - Gestão de empreendimentos/tipologias/projetos/versões; editor de construção; camadas BIM.
-- Three.js: cena, material, LOD, orçamento de desempenho 3D.
+- Editor de seleção/transformação de elementos, materiais PBR por projeto, LOD, KTX2 e medição de
+  desempenho 3D em dispositivo real (QG-19).
 - Geração por IA (texto/imagem/planta/ficheiro) e o seu modelo de custo/limites.
 - Visitas guiadas, experiência cinematográfica, partilhas públicas, analytics de visita.
 - Leads, pedidos de contacto, notificações, planos, pagamentos, ativação manual.
@@ -139,18 +177,22 @@ Gates pendentes/bloqueados por inexistência de objeto (BD, UI real, 3D): QG-13 
 
 ## Índice de documentação
 
-| Documento                               | Conteúdo                                                                                                                         |
-| --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/PRODUCT-SPEC.md`                  | visão, personas, jornadas, âmbito, restrições, critérios de sucesso, riscos                                                      |
-| `docs/ARCHITECTURE.md`                  | fronteiras e camadas, regra de dependência, configuração, erros/observabilidade, limites 3D/BIM, o que não antecipar             |
-| `docs/DATA-MODEL.md`                    | entidades conceptuais, relações, posse, matriz de acesso, estados, decisões abertas                                              |
-| `docs/SECURITY.md`                      | identidade/autorização, isolamento por tenant + RLS, segredos, entradas, uploads, rate limiting, auditoria, backups, privacidade |
-| `docs/QUALITY-GATES.md`                 | portões QG-01…QG-19, ambiente, **resultados executados**, defeitos encontrados, limites do que foi verificado                    |
-| `docs/DEPENDENCIES.md`                  | por pacote: finalidade, justificação, alternativas, compatibilidade verificada, custo, risco                                     |
-| `docs/DEPLOYMENT.md`                    | serviços, limites gratuitos, riscos de preço, ambientes, CI, checklist pós-deploy, backups                                       |
-| `docs/DEVELOPMENT-WORKFLOW.md`          | ramos, commits, PRs, DoD, portões entre fases, convenções, release                                                               |
-| `docs/ADR/0001-initial-architecture.md` | decisão de arquitetura inicial, alternativas, consequências, verificação, decisões abertas                                       |
-| `docs/ADR/TEMPLATE.md`                  | formato para os ADR seguintes                                                                                                    |
+| Documento                               | Conteúdo                                                                                                                              |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/PRODUCT-SPEC.md`                  | visão, personas, jornadas, âmbito, restrições, critérios de sucesso, riscos                                                           |
+| `docs/ARCHITECTURE.md`                  | fronteiras e camadas, regra de dependência, configuração, erros/observabilidade, limites 3D/BIM, o que não antecipar                  |
+| `docs/DATA-MODEL.md`                    | entidades conceptuais, relações, posse, matriz de acesso, estados, decisões abertas                                                   |
+| `docs/SECURITY.md`                      | identidade/autorização, isolamento por tenant + RLS, segredos, entradas, uploads, rate limiting, auditoria, backups, privacidade      |
+| `docs/QUALITY-GATES.md`                 | portões QG-01…QG-21, ambiente, **resultados executados** (Fase 0 em §4, Fase 2 em §4.3), defeitos encontrados, limites da verificação |
+| `docs/DESIGN-SYSTEM.md`                 | tokens, contraste medido, tipografia, espaçamento, movimento, inventário de componentes, estados e acessibilidade                     |
+| `docs/ADR/0003-design-system.md`        | tokens num único ficheiro, tema por `data-*`, densidade por multiplicador, tipografia de sistema                                      |
+| `docs/ADR/0004-camada-3d.md`            | volumetria procedural, ciclo de vida WebGL, alternativa não-gráfica, o que fica travado                                               |
+| `docs/ADR/0005-toolchain-fase-2.md`     | ESLint 10 com allowlist de peers, orçamento de bundle, dois projetos de teste, `axe-core`                                             |
+| `docs/DEPENDENCIES.md`                  | por pacote: finalidade, justificação, alternativas, compatibilidade verificada, custo, risco                                          |
+| `docs/DEPLOYMENT.md`                    | serviços, limites gratuitos, riscos de preço, ambientes, CI, checklist pós-deploy, backups                                            |
+| `docs/DEVELOPMENT-WORKFLOW.md`          | ramos, commits, PRs, DoD, portões entre fases, convenções, release                                                                    |
+| `docs/ADR/0001-initial-architecture.md` | decisão de arquitetura inicial, alternativas, consequências, verificação, decisões abertas                                            |
+| `docs/ADR/TEMPLATE.md`                  | formato para os ADR seguintes                                                                                                         |
 
 ## Licença e dados
 
