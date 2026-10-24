@@ -305,3 +305,62 @@ explícita com `activation`.
 - [ ] Estratégia de índice + `EXPLAIN` de referência registado no PR (só se mede, não se promete).
 - [ ] Política de retenção/eliminação materializada em migração (campos a apagar, não só "esconder").
 - [ ] Modelo de versão/imutabilidade testado (invariantes do §6).
+
+---
+
+## 10. Modelo de cena da Fase 3 (em memória, não persistido)
+
+Nada nesta secção está na base de dados — não há base de dados. O `SceneDocument`
+(`src/three/model.ts`) existe para que a Fase 1 o possa persistir sem reescrever o editor, e é o
+único objeto que o motor sabe ler. Está aqui porque "que campos existem e quem os posse" tem de ter
+uma resposta escrita antes de existir esquema.
+
+**Convenção (escrita no próprio documento, recusada se divergir):**
+
+| Campo canónico   | Valor                                                                                              | Onde                          |
+| ---------------- | -------------------------------------------------------------------------------------------------- | ----------------------------- |
+| `convention`     | `velora.meters.y-up.v1`                                                                            | `units.ts:UNIT_CONVENTION_ID` |
+| `upAxis`         | `Y`                                                                                                | `units.ts:UP_AXIS`            |
+| `northAxis`      | `-Z`                                                                                               | `units.ts:NORTH_AXIS`         |
+| `origin`         | "centroide do terreno, ao nível do solo acabado do piso 0"                                         | `units.ts:ORIGIN_DESCRIPTION` |
+| `orientationDeg` | rotação do edifício face ao norte, em graus                                                        | por projeto                   |
+| unidades         | metros, um decimal tratado como tal (`mm()` converte de milímetros apenas na fronteira do gerador) | `units.ts`                    |
+
+`parseSceneDocument` falha se `schemaVersion !== 1`, se a `convention` for outra, se um elemento
+referir um `levelId`/`materialId` inexistente ou se uma id não for única. É por isso que há um número
+de versão no documento e no ficheiro JSON, e não um `default` tolerante.
+
+**Entidades:** `SceneDocument` (1) → `SceneLevel` (N: `id`, `index`, `label`, `kind ∈ site|podium|typical|setback|roof`,
+`elevationM`, `heightM`) → `SceneElement` (N). O elemento é o átomo editável:
+
+| Campo        | Papel                                                                                                       | Nota de posse                                                                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`         | `${levelId}.${category}.${n}`, estável e legível                                                            | não é aleatório de propósito: é a chave de seleção, da árvore e do `_sync_` da cena, e tem de sobreviver a reordenamentos                                                |
+| `name`       | rótulo humano                                                                                               | gerado pelo construtor, editável no painel (só texto)                                                                                                                    |
+| `category`   | 10 categorias fixas (`terrain, platform, slab, wall, partition, door, window, roof, circulation, interior`) | é a categoria que escolhe a **regra de edição** e o **material por omissão**; não é uma etiqueta livre                                                                   |
+| `levelId`    | piso                                                                                                        | sobe/gra com a categoria na árvore                                                                                                                                       |
+| `materialId` | 10 chaves de material (`ground, platform, slab, wall, partition, door, glazing, roof, core, furniture`)     | o material vive em `materials.ts` e lê tokens, não cores literais                                                                                                        |
+| `geometry`   | `box \| wall \| plate \| panel \| stairs` com dimensões nominais em metros                                  | a geometria **nominal** vai para o `RenderPlan`; a transformação vive no objeto                                                                                          |
+| `transform`  | `position: Vec3` (m, Y para cima), `rotationY` (graus, anti-horário visto de cima), `scale: Vec3`           | escrito **só** por `withTransform` → `resolveTransform` (regra + `snapping` + limites)                                                                                   |
+| `visible`    | visibilidade do elemento                                                                                    | a visibilidade de categoria é derivada por `withCategoryVisibility`, nunca duplicada                                                                                     |
+| `locked`     | terreno e plataforma recusam todas as ferramentas                                                           | campo explícito porque "bloqueado" é um estado de produto, não um acaso das regras                                                                                       |
+| `structural` | marca o que é estrutura                                                                                     | usado pela regra para recusar escala de fachada; não é uma alegação de cálculo estrutural                                                                                |
+| `demo`       | `{ generatedFrom, note }`                                                                                   | metadado de demonstração **dentro** do modelo: um documento importado de origem real teria de trazer outro marcador, e o editor recusa o selo de demo se ele não existir |
+
+**Relações e invariantes que os testes afirmam** — `model.test.ts` (19 testes),
+`demo-building.test.ts` (22), `serialize.test.ts` (14) e `render-plan.test.ts` (7):
+
+- nenhum elemento órfão (`levelId` existe), nenhuma geometria com dimensão ≤ 0, nenhuma cota fora do
+  sentido (a laje nunca fica abaixo da cota do piso), nenhuma id repetida;
+- espessuras fixas no gerador — fachada 0,25 m, divisória 0,1 m, laje 0,28 m, painel envidraçado
+  0,06 m, parapeito 0,90 m, porta 1,10 × 2,10 m — e pé-direito vindo do projeto de demonstração
+  (2,90–3,20 m nos 6 edifícios). São números de maquete, registados em `demo-building.test.ts` para
+  que uma mudança de proporção seja uma decisão e não um deslize;
+- `buildRenderPlan(document)` é determinístico: o mesmo documento produz o mesmo plano (mesmas
+  chaves, mesmas dimensões, mesma ordem), o que torna a cena testável em Node sem `three`.
+
+**Fronteira com o modelo de construção (BIM):** o `SceneElement` é uma representação, não um elemento
+de projeto. Não há `IfcWall`, não há classificação, não há quantidade de materiais, não há
+propriedades Part 1/Part 11 e nenhuma superfície do produto afirma conformidade. Quando a Fase 4
+trouxer IFC, o mapeamento entra por `model-loader.ts` (que hoje recusa todos os formatos que não o
+JSON do próprio VELORA) e produz `SceneElement`s — o editor não muda.

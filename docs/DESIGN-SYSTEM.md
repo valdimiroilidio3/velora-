@@ -329,3 +329,41 @@ foi tocado na Fase 2 — o que mudou foram os valores de cor.
 | Tokens de gráficos (dados)               | não há gráficos de dados na Fase 2                                                 | Fase 4                     |
 | Tema de alto contraste dedicado          | limiares actuais já são os do pior caso; adiar até haver pedido                    | Fase 5                     |
 | Componentes de tabela de edição / modais | não há objeto a desenhar                                                           | Fase 3–4                   |
+
+---
+
+## 14. O editor 3D no sistema (Fase 3)
+
+O editor de modelo (`/app/modelo`, `src/components/editor/**`) foi desenhado com a regra do §12
+aplicada ao contrário: **zero tokens novos**. Uma segunda linguagem visual num ecrã que já tem uma
+seria pior do que um ecrã feio, por isso o que o editor pede ao sistema já lá estava.
+
+| Superfície                                    | Como usa o sistema                                                                                                                                                                                                                                                                | O que não faz                                                                           |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Palco                                         | o fundo, a grelha e as cores dos materiais vêm dos tokens `--scene-*`, lidos em `read-token.ts` e **injetados** no motor: `three` nunca chama `getComputedStyle`, por isso continua testável em Node com cores fixas                                                              | nenhum gradiente, nenhum brilho de marca dentro do canvas                               |
+| Barra de ferramentas                          | `Button` com `variant`/`size` do sistema, `aria-pressed` nas ferramentas, `role="toolbar"`                                                                                                                                                                                        | botões desenhados à mão dentro do palco                                                 |
+| `aria-label` por nó (`"… — N de M visíveis"`) |
+| Propriedades                                  | `Field` (com `*` + texto para leitor de ecrã), `inputMode="decimal"` com vírgula `pt-PT`, `StatusPill` para o estado da seleção, `Alert` para recusas                                                                                                                             | `type="number"`: o browser rejeita `"3,45"` e a vírgula do locale perdia-se em silêncio |
+| Estado                                        | `.surface-card` no rodapé com `StatusPill` (palco ativo / a preparar / vetor sem WebGL), `N elementos · M visíveis`, os contadores reais do palco quando existem, `X edições nesta sessão`, a seleção ativa, a convenção de unidades e o `DemoBadge` — todas as strings em `i18n` | cartões flutuantes por cima do modelo, números sem origem                               |
+| Estados de erro                               | sem WebGL → cartão de alternativa não-gráfica com árvore e painel funcionais; contexto perdido → aviso com `Recarregar o palco`                                                                                                                                                   | spinner eterno, mensagem técnica crua, página em branco                                 |
+
+Regras que a Fase 3 tornou necessárias e que passam a estar no contrato:
+
+- **o palco é o foco visual**: num ecrã estreito os painéis passam para debaixo do canvas em vez de
+  o cobrirem, e o `_layout_` não usa `position: fixed` sobre o modelo;
+- **indicadores discretos**: o HUD usa `text-2xs` + `tabular` e vive no rodapé da superfície, não em
+- **indicadores discretos**: o HUD usa `text-2xs` + `tabular` e vive no rodapé da superfície, não em
+  cartões flutuantes sobre o modelo — e escreve "sem contagens de GPU" quando não há palco, em vez de
+  mostrar zeros inventados;
+- **nada de número bonito**: toda a numeração do editor vem de `Intl`/`units.ts` com unidades
+  explícitas; o editor não mostra "1 250" sem um `m` ao lado;
+- **o _reduced motion_ chega ao motor, não só ao CSS**: `reducedMotion` entra na montagem do palco e
+  desliga a animação de câmera (as vistas enquadram em vez de interpolar). A **qualidade** é outra
+  decisão e não duplica nada: `tierFor(preferência, isConstrainedDevice())` sobre a preferência única
+  da aplicação (`lib/preferences`) — em dispositivo limitado resolve para `leve` (sem sombras, 1×, sem
+  antialias), exatamente como a cena de volume da Fase 2;
+  para `leve` e desliga a animação de câmera; é um pedido do sistema, não uma escolha estética;
+- o `axe-core` da QG-16 passou a correr sobre o editor (`src/app/accessibility.test.tsx`) e apanhou
+  duas coisas reais antes do primeiro _commit_: um contentor rolável com `role="tree"` sem
+  `tabIndex` (inacessível por teclado) e um `<li>` de truncagem dentro da árvore que não pertencia à
+  estrutura (`role="presentation"` adicionado).

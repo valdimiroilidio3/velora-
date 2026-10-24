@@ -80,15 +80,18 @@ velora/
 │   │       ├── page.tsx              # visão geral
 │   │       ├── projetos/             # lista/filtros por URL + [slug] (pré-render ×6)
 │   │       ├── cena/                 # palco 3D isolado (WebGL, fallback, métricas)
+│   │       ├── modelo/               # rota do editor 3D: dinâmica (lê ?projeto=), palco em `ssr: false`
 │   │       └── preferencias/         # tema / densidade / movimento (+ mapa de estado das rotas)
 │   ├── components/
 │   │   ├── ui/                       # primitivas de apresentação (button, field, alert, toast, …)
 │   │   ├── layout/                   # shell, nav, cabeçalho, preferências (efeitos + formulário)
 │   │   ├── projects/                 # cartões, linha, toolbar com estado no URL, planta SVG
-│   │   └── scene/                    # volume-scene.ts (imperativo) + scene-stage/view/fallback
+│   │   ├── scene/                    # volume-scene.ts (imperativo) + scene-stage/view/fallback
+│   │   └── editor/                   # store do editor, palco (única porta do motor), árvore, propriedades, HUD
 │   ├── config/nav.ts                 # estrutura de navegação + estado por fase (sem ícones)
 │   ├── demo/                         # dados fictícios rotulados + query determinística + volumetria
 │   ├── i18n/pt.ts                    # catálogo das strings de interface (idioma único por enquanto)
+│   ├── three/                        # motor: 11 módulos de domínio puro + `engine/` (8) que fala com `three`
 │   └── lib/                          # cn, format (Intl), preferences (+ store), webgl, env, validação de acesso
 ├── tests/                            # [plano F4] integração/E2E; unitários vivem junto do código
 ├── public/                           # [plano] só quando existir asset binário versionado
@@ -107,24 +110,28 @@ previstos (`components/`, `i18n/`, `lib/`) e criou dois novos com justificação
 | Onde vive uma string de interface?             | `src/i18n/pt.ts`. Um rótulo escrito dentro de um `.tsx` é defeito de revisão.                                                                                                               |
 | Onde vive um dado de demonstração?             | `src/demo/**`, sempre com `isDemo`/`DEMO_NOTICE`. Uma página nunca declara um número de exemplo no JSX.                                                                                     |
 | Onde vive geometria?                           | `src/demo/massing.ts` produz o `Massing`; `components/scene/volume-scene.ts` renderiza-o; `components/projects/plan-drawing.tsx` desenha-o em SVG. Uma descrição, três consumidores.        |
+| Onde vive geometria editável?                  | `src/three/model.ts` (documento) → `render-plan.ts` (plano) → `engine/scene-manager.ts` (cena). A cena é uma projeção; escrever é sempre `withTransform`.                                   |
 | Onde vive estado de cliente?                   | Módulos com `useSyncExternalStore` (`lib/preferences-store.ts`) ou o próprio URL (`components/projects/search-events.ts`). Não há biblioteca de estado nem contexto para dados de servidor. |
 | Onde vai parar um caso de uso real?            | `src/server/` (com `src/core` por baixo) quando existir persistência; os componentes de hoje chamariam esse módulo, não `src/demo`.                                                         |
 | Onde entram integrações (IA, storage, e-mail)? | `src/integrations/` atrás de um _port_ em `src/core`; a UI não conhece SDKs. A fronteira está descrita em §8 e em `SECURITY.md` §6; nenhuma implementação existe.                           | ### 3.2 Regra de dependência (o contrato que a torna possível) |
 
-| Camada                                   | Pode importar                                       | Nunca pode importar                                    |
-| ---------------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
-| `src/core`                               | só `src/core`, `zod`                                | Next, `src/db`, `src/integrations`, browser APIs       |
-| `src/db`                                 | `src/core` (tipos), driver, `src/lib`               | `src/app`, `src/components`                            |
-| `src/integrations`                       | `src/core` (ports), SDKs                            | `src/app`                                              |
-| `src/server`                             | `src/core`, `src/db`, `src/integrations`, `src/lib` | JSX/componentes                                        |
-| `src/app`, `src/components`              | `src/server`, `src/core` (tipos), UI                | `src/db`, `src/integrations` (exceto via `src/server`) |
-| `src/components/ui`                      | `src/lib`, `src/i18n`, React                        | `src/demo`, `src/config`, rotas, `three`               |
-| `src/components/{layout,projects,scene}` | `ui`, `lib`, `demo`, `config`, `i18n`               | outros grupos de componentes; `src/app`                |
-| `src/demo`, `src/config`, `src/i18n`     | tipos de `src/lib`, `zod`                           | React, `three`, DOM — têm de poder correr no Node      |
-| `src/lib`                                | `src/lib`                                           | React DOM no servidor, `src/components`, dados de demo |
-| `src/three` (previsto, F3)               | `src/core` (dados de cena)                          | React, Next                                            |
+| Camada                                   | Pode importar                                          | Nunca pode importar                                                     |
+| ---------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `src/core`                               | só `src/core`, `zod`                                   | Next, `src/db`, `src/integrations`, browser APIs                        |
+| `src/db`                                 | `src/core` (tipos), driver, `src/lib`                  | `src/app`, `src/components`                                             |
+| `src/integrations`                       | `src/core` (ports), SDKs                               | `src/app`                                                               |
+| `src/server`                             | `src/core`, `src/db`, `src/integrations`, `src/lib`    | JSX/componentes                                                         |
+| `src/app`, `src/components`              | `src/server`, `src/core` (tipos), UI                   | `src/db`, `src/integrations` (exceto via `src/server`)                  |
+| `src/components/ui`                      | `src/lib`, `src/i18n`, React                           | `src/demo`, `src/config`, rotas, `three`                                |
+| `src/components/editor`                  | `ui`, `lib`, `i18n`, `demo`, `src/three` (camada pura) | `three`, `src/three/engine/**` — exceto `viewport-3d.tsx`, ver QG-22    |
+| `src/components/{layout,projects,scene}` | `ui`, `lib`, `demo`, `config`, `i18n`                  | outros grupos de componentes; `src/app`                                 |
+| `src/demo`, `src/config`, `src/i18n`     | tipos de `src/lib`, `zod`                              | React, `three`, DOM — têm de poder correr no Node                       |
+| `src/lib`                                | `src/lib`                                              | React DOM no servidor, `src/components`, dados de demo                  |
+| `src/three` (Fase 3)                     | `src/three` (dentro de si), tipos de `src/demo`        | React, Next, DOM; a pasta `engine/` é a única que pode importar `three` |
 
-A regra é verificada a dois níveis: os testes de contrato (`design-tokens.test.ts` varre `src/**` à
+A regra é verificada a **três** níveis: o teste de fronteira do motor (`src/three/boundary.test.ts`,
+QG-22) prova que ninguém fora das portas nomeadas importa `three` em runtime; as regras de lint
+(`no-restricted-imports` não é preciso — a varredura cobre mais) mantêm a separação nos PRs; e os testes de contrato (`design-tokens.test.ts` varre `src/**` à
 procura de cores literais; `nav.test.ts` proíbe o catálogo de navegação de importar ícones) e o
 orçamento de bundle (QG-20), que falha se uma dependência de renderização entrar no chunk partilhado.
 
@@ -153,6 +160,8 @@ documentada como **não verificada**.
 | `src/lib/env.test.ts`                             | 14 testes: comportamento do schema + contrato com `.env.example` (QG-11).                                                                 |
 
 | `src/components/ui/**` (9 primitivas) | Toda a superfície de estados (foco, erro, vazio, carregamento, selecção) foi desenhada uma vez, testada 14× e reutilizada em 7 rotas. Sem isto cada página reinventaria botões. |
+| `src/three/**` (19 módulos) | Fase 3: o editor precisa de um modelo de cena serializável, testável em Node, com regras de edição partilhadas por gizmo, painel e serialização. `ADR 0006`. |
+| `src/components/editor/**` (11 módulos) | O palco é a única peça com `three`; árvore, propriedades, barra de ferramentas e HUD leem o mesmo store, para que a seleção sincronize sem código de sincronização. |
 | `src/components/scene/**` + `src/lib/webgl.ts` | Pedidos de Fase 2 exigiam 3D **com** gestão de contexto, fallback e limites móveis. `ADR 0004`. |
 | `src/demo/**` | O produto não tem base de dados: os dados de demonstração precisam de ser tipados, rotulados e determinísticos, não literais no JSX. |
 | `scripts/check-peer-deps.mjs` · `bundle-budget.mjs` | Portões QG-09 (com allowlist nomeada) e QG-20; cada um tem teste próprio (`scripts/gates.test.mjs`). |
@@ -231,8 +240,11 @@ para logs; (d) `try/catch` só onde há fronteira — não em cada função.
 ## 7. Estratégia de renderização e de dados
 
 - **Server Components por omissão**; `"use client"` apenas onde há interação (canvas, editor,
-  formulários com estado de cliente). Orçamento **medido na Fase 2**: chunk partilhado do shell 128,9 kB gzip, primeiro carregamento por
-  rota 185–203 kB, total de cliente 359,5 kB (limites 150/240/520 kB, `pnpm run budget`).
+  formulários com estado de cliente). Orçamento **re-medido no fim da Fase 3**: _chunk_ partilhado do shell 129 kB gzip (limite 150),
+  primeiro carregamento das rotas pré-renderizadas 171–205,4 kB, total de cliente 401,1 kB em 21
+  _chunks_ (limite 520). A rota do editor, sendo dinâmica, não aparece no `pnpm run budget`: foi
+  medida à mão no HTML servido por `next start` — 12 _scripts_, **214 kB gzip**, com **0 kB** de
+  `three` (o motor são 135,1 kB gzip num _chunk_ só dele, carregado quando há WebGL). Ver QG-22.
 - **Mutações**: server actions para operações simples; route handlers quando for preciso streaming,
   uploads `multipart` ou chamadas de terceiros. Sempre com validação de origem/payload e verificação
   de papel no servidor.
@@ -244,44 +256,82 @@ para logs; (d) `try/catch` só onde há fronteira — não em cada função.
 
 ---
 
-## 8. Camada 3D/BIM (primeira camada implementada na Fase 2)
+## 8. Camada 3D/BIM (motor implementado na Fase 3)
 
-Estado: **existe uma cena WebGL real com volumetria procedural** (`components/scene/`), alimentada por
-um `Massing` derivado de um `SceneSeed` declarativo. Isto **não** é um modelo BIM nem uma planta
-certificada — e a própria interface o diz (`ADR 0004` §2.11). Os limites abaixo continuam a ser os
-contratos para as fases seguintes; o ponto 1 está parcial (o `SceneSeed` é o esboço desse formato, mas
-ainda não tem `schemaVersion` nem ficheiro `.schema.json` — não há importação nem persistência).
+Estado: **há um motor de cena e um editor funcional**. `src/three/` é domínio puro (documento,
+regras de edição, hierarquia, métricas, serialização, gerador do modelo de demonstração) e
+`src/three/engine/` é a única camada que fala com `three` (cena, câmera, materiais, seleção, gizmo,
+luzes, monitor, composição). A cena de volume da Fase 2 (`components/scene/`) continua a existir e
+a ser usada na rota `/app/cena` — o editor não a substituiu.
+
+Isto **não** é um modelo BIM, não é projeto de execução e não lê IFC; a interface diz isso em
+`ui.editor.notice`, com o selo de demonstração em cima do modelo.
+
+Como está organizado (ver `ADR 0006` para as razões):
+
+| Camada              | Ficheiros                                                                                                                                                       | Responsabilidade                                                                                                                                                                                                                                                                                            |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Convenção e modelo  | `units.ts`, `model.ts`                                                                                                                                          | metros, +Y para cima, norte em −Z, origem no centroide do lote; `SceneElement` com id estável, categoria, geometria, transformação, material, visibilidade, piso e metadados de demonstração                                                                                                                |
+| Regras              | `edit-rules.ts`, `materials.ts`                                                                                                                                 | o que pode mover-se, rodar, escalar, por categoria; passo de _snapping_ por categoria (0,05–0,1 m e 5–15°); limites de deslocamento e de escala; a recusa devolve o motivo                                                                                                                                  |
+| Conteúdo            | `demo-building.ts`                                                                                                                                              | edifício procedural a partir de `SceneSeed` (6 projetos de demonstração): terreno, plataforma, lajes por piso, fachada com panos e vãos, divisórias, portas, coberturas, núcleos verticais, mobiliário                                                                                                      |
+| Leitura do modelo   | `hierarchy.ts`, `metrics.ts`, `serialize.ts`, `model-loader.ts`                                                                                                 | árvore Projeto → Edifício → Pisos → Categorias → Elementos; métricas por elemento e por documento; export/import JSON validado com `schemaVersion` (formato nosso, não IFC)                                                                                                                                 |
+| Ponte para o render | `render-plan.ts`, `view-presets.ts`                                                                                                                             | `RenderPlan` determinístico (geometria **nominal** + transformação por objeto) — é o único contrato entre o documento e o `three`                                                                                                                                                                           |
+| Motor               | `engine/scene-manager.ts`, `camera-controller.ts`, `selection.ts`, `transform-gizmo.ts`, `lighting.ts`, `materials.ts`, `performance-monitor.ts`, `viewport.ts` | `Object3D` por elemento com _sync_ incremental, `OrbitControls` com limites derivados dos _bounds_, _raycast_ com limiar de clique, `TransformControls` restrito pelas regras, 3 luzes com sombra ortográfica dimensionada, contadores reais, composição com renderização sob pedido e `dispose()` completo |
+| Interface           | `src/components/editor/**`                                                                                                                                      | store do editor (fora do React, ligado por `useSyncExternalStore`), palco (única porta do `three`, em `ssr: false`), árvore, propriedades, barra de ferramentas, HUD de estado                                                                                                                              |
+
+As regras de edição, por categoria (toda a escrita de geometria passa por aqui — `withTransform`
+recusa, nunca ignora em silêncio; ver `src/three/edit-rules.ts`, que é o que a tabela espelha):
+
+| Categoria                     | Mover    | Rodar | Escalar   | Passo                        |
+| ----------------------------- | -------- | ----- | --------- | ---------------------------- |
+| terreno, plataforma           | —        | —     | —         | — (plano de referência fixo) |
+| laje                          | vertical | —     | espessura | 0,05 m                       |
+| parede estrutural             | planta   | 5°    | —         | 0,1 m / 5°                   |
+| divisória                     | planta   | 5°    | espessura | 0,05 m / 5°                  |
+| porta                         | planta   | —     | —         | 0,05 m                       |
+| janela                        | vertical | —     | —         | 0,05 m                       |
+| cobertura                     | vertical | —     | espessura | 0,05 m                       |
+| circulação vertical (escadas) | planta   | 15°   | —         | 0,1 m / 15°                  |
+| interior (mobiliário)         | livre    | 15°   | uniforme  | 0,05 m / 15°                 |
+
+O conteúdo de demonstração, medido no gerador (`buildDemoDocument(demoProjects[0])`): **518 elementos** em **8 pisos** (`site`, `podium`, 4× `typical`, `setback`, `roof`), distribuídos por categoria — 321 panos de fachada, 88 vãos (87 janelas + 1 porta de entrada por volume), 28 divisórias, 32 volumes de interior, 21 lajes/coberturas e 16 escadas. É uma maquete paramétrica: portas de interior, guardas, sancas, revestimentos e degraus por norma **não** são modeladas, e o gerador assinala cada um desses limites no comentário do bloco.
 
 Limites que aceitamos **já**, para não termos de reescrever depois:
 
-1. Formato de intercâmbio: **cena descrita por JSON versionado** (`scene.schema.json`, `schemaVersion`
-   obrigatório). Three.js é detalhe de renderização; a cena sobrevive a trocas de motor.
-2. Modelo de representação separado do modelo de construção: geometria/visual ↔ elementos BIM
-   (paredes, vãos, pisos) com identificação persistente. O editor trabalha o segundo, o renderer
-   consome o primeiro.
-3. Assets binários nunca vão para a BD: ficam em armazenamento de objetos com `resource`
-   (`ETag`, tamanho, mime, hash) — política de uploads em `SECURITY.md` §6.
-4. Orçamento de performance (medido a partir da Fase 3): ≤ 1,5 M de triângulos por cena ativa,
-   ≤ 1 500 draw calls, texturas comprimidas (KTX2/Basis), carregamento progressivo por LOD, e
-   degradação explícita em dispositivos fracos. Sem medidor em CI, não prometemos números.
-5. Formatos de entrada (IFC/GLB/planos imagem) entram por _parsers_ em worker; parsing de ficheiro
-   de terceiro é superfície de ataque — timeout, limites de primitivas e sandbox obrigatórios.
+1. Formato de intercâmbio: **cena descrita por JSON versionado** — `serialize.ts` escreve e lê
+   `velora.scene-document` v1 com a convenção de unidades no envelope, e `parseSceneDocument`
+   recusa documento sem `schemaVersion` ou com convenção diferente. Um `scene.schema.json` só faz
+   sentido quando houver um consumidor externo (exportação); `schemaVersion` já lá está.
+2. Modelo de representação separado do modelo de construção: o `SceneElement` é o ponto de partida
+   do segundo (identificadores estáveis `L01.wall.01`, categoria, piso); o `RenderPlan` é o primeiro.
+   Não há mapeamento IFC e não há alegação de conformidade.
+3. _Assets_ binários nunca vão para a BD: `model-loader.ts` aceita hoje **apenas** o documento
+   de demonstração e um JSON no nosso formato; GLB/IFC/devem entrar por _parser_ em _worker_, com
+   _timeout_ e limites de primitivas (superfície de ataque, `SECURITY.md` §6) — a fronteira está
+   escrita, a implementação não existe.
+4. Orçamento de desempenho: o medidor está no produto (`PerformanceMonitor`, linha de estado no
+   palco) e os limiares de cena estão em `metrics.ts` (`PERFORMANCE_BUDGET`: triângulos, _draw
+   calls_, geometrias). **Não há números medidos por dispositivo neste ambiente** — o QG-19 fica
+   PENDENTE até alguém executar `docs/MANUAL-3D-TESTS.md` §6. Sem medição, não prometemos FPS.
+5. Degradação explícita: sem WebGL o editor continua a funcionar (árvore, propriedades, regras,
+   contagens) e diz que não está a desenhar; em dispositivos limitados a qualidade resolve para
+   `leve` (sem sombras, resolução 1×).
 
 ---
 
 ## 9. O que não deve ser antecipado (e como sabemos que chegou a hora)
 
-| Não construir agora    | Gatilho de ativação                                                                                                                           |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| ORM/migrações/esquema  | Primeiro endpoint que precise de persistir entre restarts (Fase 1)                                                                            |
-| Autenticação completa  | Primeiro dado que não possa ser público (Fase 1)                                                                                              |
-| Fila/worker externo    | Tarefa que não caiba em 300 s de função serverless (IA em massa, exportações)                                                                 |
-| Microsserviços         | Dois módulos com escalas/SLAs incompatíveis e fronteira estável medida                                                                        |
-| Cache distribuído      | P95 de leitura de projeto > 300 ms com índices corretos                                                                                       |
-| Camada 3D              | ✅ **ativado na Fase 2** — existe volumetria paramétrica (`Massing`) renderizada; o próximo degrau é seleção/edição sobre um documento tipado |
-| Sistema de design      | ✅ **ativado na Fase 2** — 7 superfícies reais, tokens únicos, contrato automatizado (QG-21)                                                  |
-| Pagamentos recorrentes | Primeiro cliente pronto a pagar + decisão de plano (Fase 5)                                                                                   |
-| Infra Terraform/K8s    | Custos/scope que o justifiquem por escrito                                                                                                    |
+| Não construir agora    | Gatilho de ativação                                                                                                                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ORM/migrações/esquema  | Primeiro endpoint que precise de persistir entre restarts (Fase 1)                                                                                                                      |
+| Autenticação completa  | Primeiro dado que não possa ser público (Fase 1)                                                                                                                                        |
+| Fila/worker externo    | Tarefa que não caiba em 300 s de função serverless (IA em massa, exportações)                                                                                                           |
+| Microsserviços         | Dois módulos com escalas/SLAs incompatíveis e fronteira estável medida                                                                                                                  |
+| Cache distribuído      | P95 de leitura de projeto > 300 ms com índices corretos                                                                                                                                 |
+| Camada 3D              | ✅ **ativado na Fase 2 e motor na Fase 3** — documento tipado, seleção, gizmo com regras, hierarquia e _dispose_; o próximo degrau é persistir o documento e ler ficheiros reais (§8.3) |
+| Sistema de design      | ✅ **ativado na Fase 2** — 7 superfícies reais, tokens únicos, contrato automatizado (QG-21)                                                                                            |
+| Pagamentos recorrentes | Primeiro cliente pronto a pagar + decisão de plano (Fase 5)                                                                                                                             |
+| Infra Terraform/K8s    | Custos/scope que o justifiquem por escrito                                                                                                                                              |
 
 ---
 

@@ -209,3 +209,33 @@ Alternativa MIT: `pg@8.23.1`.
 - CHANGELOG do pnpm 12.15.0 (local, em `node_modules`) para a substituição de `onlyBuiltDependencies`
   por `allowBuilds` (§4.3).
 - Limites de serviços externos: documentados e citados em `DEPLOYMENT.md` §2.
+
+---
+
+## 7. Fase 3: **zero pacotes novos** (e porque isso é o resultado)
+
+O pedido da Fase 3 dizia para verificar impacto no bundle antes de adicionar bibliotecas. A verificação
+fez-se **antes** de escrever código e o resultado foi não instalar nada: `three@0.186.1` e
+`@types/three@0.186.0` já estavam no grafo desde a Fase 2 (ver `ADR 0004`).
+
+| Candidato                                      | Decisão                       | Custo evitado / motivo                                                                                                                                                 |
+| ---------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@react-three/fiber` + `drei`                  | **recusado**                  | ~3 pacotes e um modelo mental novo para um trabalho imperativo; o reconciliador ficaria no caminho mais quente (arrastar um gizmo). Razões completas em `ADR 0006` §1. |
+| `@react-three/postprocessing` / EffectComposer | **recusado**                  | o pedido pedia pós-processamento pesado evitado; nenhum efeito foi precisado                                                                                           |
+| `zustand` / `jotai` para o estado do editor    | **recusado**                  | o store do editor são ~180 linhas sem dependências, testáveis em Node, ligados ao React por `useSyncExternalStore` (o padrão já existe em `lib/preferences-store.ts`)  |
+| `@dimforge/rapier` (física), `web-ifc` (IFC)   | **recusados, fora de âmbito** | declarados no §13 do pedido como fora da fase; o `model-loader.ts` recusa formatos em vez de os receber "para já"                                                      |
+| `stats.js`                                     | **recusado**                  | 6 contadores próprios sobre `renderer.info` + `performance.now()` cobrem o que a UI mostra, com as strings no catálogo `i18n`                                          |
+
+Custo real no cliente, medido no fim da fase (`next build`, mais o HTML servido por `next start`):
+
+- `three` **135,1 kB gzip num único _chunk_ diferido** (o `next build` reporta-o como `3q22nnx_8z0a4.js`),
+  nunca no _chunk_ partilhado nem em rota pré-renderizada — é o que o portão QG-20 verifica;
+- `/app/modelo` abre com **214 kB gzip** de scripts iniciais e **0 kB** de motor; o motor só é pedido
+  quando há WebGL para montar o palco (`dynamic(…, { ssr: false })`);
+- para comparação, as rotas sem 3D pagam 171,1–205,4 kB. O editor custa, portanto, ~9 kB de UI própria.
+
+Licenças: nada novo a registar — `three` é MIT (já coberto pelo inventário do §2 e pelo portão QG-13).
+
+O que a ausência de pacotes novos **não** prova: que a volumetria é bonita, que a cena corre a 60 fps,
+ou que `OrbitControls`/`TransformControls` se comportam bem em telemóvel. Nada disso é verificável sem
+browser e sem GPU; o protocolo está em `docs/MANUAL-3D-TESTS.md` e o QG-19 continua PENDENTE.

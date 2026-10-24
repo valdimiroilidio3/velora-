@@ -163,3 +163,36 @@ funcionamento.
 | Requisito novo ou hipótese      | `docs/PRODUCT-SPEC.md` §1/§5/§6, com marcador `[Aprovado]/[Hipótese]/[Em aberto]` |
 | Custo/serviço novo              | `docs/DEPLOYMENT.md` §2.1                                                         |
 | Incidente/runbook               | `docs/RUNBOOK.md` (a criar na Fase 1, com o registo de restauro mensal)           |
+
+---
+
+## 11. Convenções do motor 3D e do editor (desde a Fase 3)
+
+Trabalhar em `three` dentro de React tem um custo de revisão próprio. Estas são as regras que
+resultaram de defeitos encontrados, não de preferência:
+
+1. **A cena é uma projeção.** Nunca mutar geometria no motor sem passar por `withTransform` (ou
+   pela visibilidade no documento). Se um _bug_ só existe no `Object3D`, ele vai desaparecer ao
+   recarregar — o que é uma forma de _bug_ silencioso.
+2. **A UI não importa `three`.** A fronteira é o QG-22 (`src/three/boundary.test.ts`): as duas portas
+   nomeadas (`components/editor/viewport-3d.tsx` e `components/scene/volume-scene.ts`) ficam atrás de
+   `dynamic(…, { ssr: false })`. Um `import` "só das etiquetas" chega a custar 54 kB no primeiro
+   _load_ (`docs/QUALITY-GATES.md` §6.13) — por isso a verificação é um teste, não uma convenção.
+3. **Efeito de montagem = um efeito.** O motor vive num `useEffect` com dependências que não mudam
+   (`[reducedMotion, store]`); o resto entra por uma referência de "último valor" e métodos do motor
+   (`setPlan`, `setSelection`, `setQuality`, `applyTheme`). Juntar `document` ou `quality` ao array de
+   dependências recria a cena a cada _render_ — e deita fora a câmera do utilizador.
+4. **Sem `setState` em efeitos nem estado de performance no React.** Contadores de _frame_ passam por
+   um _hub_ (`components/editor/stats-hub.ts`) e só chegam ao DOM por um componente que não re-renderiza
+   os outros. As regras `react-hooks` v7 não se relajam: a arquitetura é que muda.
+5. **Fórmulas no Node, pixels no browser.** O que pode ser provado sem GPU (modelo de dados, regras,
+   _snapping_, _sync_, `dispose`, recusas, serialização) tem teste no projeto `node`; o que precisa de
+   DOM mas não de GL (ciclo de vida do palco, _fallback_, árvore, painel) corre em `jsdom` com um
+   _renderer_ falso; o que é desenho vai para `docs/MANUAL-3D-TESTS.md` e o PR cita a secção.
+6. **Libertação afirmada, não presumida.** Testar `dispose()` é contar geometrias antes e depois
+   (`scene-manager.dom.test.ts`), não confiar em `renderer.render` ter parado.
+7. **Recusa é um resultado.** Funções de edição devolvem `{ applied, rejected }` com o motivo;
+   lançamento silencioso (`return`) é proibido, porque transforma uma regra mal definida em
+   comportamento inesperado.
+8. **Nada de persistência simulada** enquanto não houver servidor: o editor conta edições da sessão,
+   di-lo, e `serialize.ts` existe como interface testada, não como promessa de produto.

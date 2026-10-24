@@ -27,29 +27,30 @@ Regras de honestidade desta fase:
 
 ## 2. Portões definidos
 
-| ID    | Portão                           | Comando                                                                                                                                   | Quando é bloqueante                            |
-| ----- | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| QG-01 | Instalação reproduzível          | `pnpm install --frozen-lockfile`                                                                                                          | Sempre (CI + local)                            |
-| QG-02 | Tipos                            | `pnpm run typecheck` (`tsc --noEmit`, `strict: true`)                                                                                     | Sempre                                         |
-| QG-03 | Lint                             | `pnpm run lint` (`eslint .`)                                                                                                              | Sempre                                         |
-| QG-04 | Formatação                       | `pnpm run format:check` (`prettier --check .`)                                                                                            | Sempre                                         |
-| QG-05 | Testes unitários                 | `pnpm run test` (`vitest run`)                                                                                                            | Sempre                                         |
-| QG-06 | Build de produção                | `pnpm run build`                                                                                                                          | Sempre                                         |
-| QG-07 | Arranque + smoke test            | `pnpm start -H 0.0.0.0 -p $PORT` + `curl /api/health`                                                                                     | Antes de cada deploy                           |
-| QG-08 | Vulnerabilidades de dependências | `pnpm audit --audit-level=high`                                                                                                           | Sempre (falha em high/critical)                |
-| QG-09 | Consistência de peers            | `pnpm run peers` (`scripts/check-peer-deps.mjs`, allowlist nomeada; `pnpm peers check` é o seu input)                                     | Sempre                                         |
-| QG-10 | Política de build scripts        | `pnpm permissions` (nenhuma dependência com `build` permitido sem registo)                                                                | Sempre                                         |
-| QG-11 | Revisão de variáveis de ambiente | teste Vitest `contrato de configuração — .env.example ↔ schema`                                                                           | Sempre                                         |
-| QG-12 | Varrimento de segredos           | `gitleaks` em CI + verificação manual documentada                                                                                         | Sempre                                         |
-| QG-13 | Licenças de dependências         | `license-checker`/`pnpm licenses` (a adotar)                                                                                              | Antes de 1.º lançamento comercial              |
-| QG-14 | Testes de integração (BD)        | `pnpm run test:integration` (a criar na Fase 1, com PostgreSQL efémero)                                                                   | A partir da Fase 1                             |
-| QG-15 | Isolamento entre tenants         | suite dedicada de testes de autorização cross-tenant (ver `SECURITY.md` §4)                                                               | Antes de qualquer dado real de 2.ª organização |
-| QG-16 | Acessibilidade                   | `pnpm run test:a11y` (axe-core no projeto `dom`) + revisão manual de teclado/contraste + portão QG-21                                     | Desde a Fase 2, com UI real                    |
-| QG-17 | E2E                              | Playwright (a adicionar na Fase 1, quando existir jornada crítica)                                                                        | A partir da Fase 1                             |
-| QG-18 | Desempenho web                   | Lighthouse CI (orçamento a definir; sem browser neste ambiente)                                                                           | A partir da Fase 3                             |
-| QG-19 | Desempenho 3D                    | BCE por cena: tri-count, draw calls, upload GPU, FPS alvo, tempo até interatividade, memória — instrumento já existe no palco (`onStats`) | A partir da Fase 3, em dispositivo real        |
-| QG-20 | Orçamento de bundle de cliente   | `pnpm run budget` (`scripts/bundle-budget.mjs`, gzip medido na build)                                                                     | Desde a Fase 2                                 |
-| QG-21 | Contrato de tokens e contraste   | `vitest run src/app/design-tokens.test.ts` (pares WCAG + proibições de identidade)                                                        | Desde a Fase 2                                 |
+| ID    | Portão                           | Comando                                                                                                                                                                                                   | Quando é bloqueante                            |
+| ----- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| QG-01 | Instalação reproduzível          | `pnpm install --frozen-lockfile`                                                                                                                                                                          | Sempre (CI + local)                            |
+| QG-02 | Tipos                            | `pnpm run typecheck` (`tsc --noEmit`, `strict: true`)                                                                                                                                                     | Sempre                                         |
+| QG-03 | Lint                             | `pnpm run lint` (`eslint .`)                                                                                                                                                                              | Sempre                                         |
+| QG-04 | Formatação                       | `pnpm run format:check` (`prettier --check .`)                                                                                                                                                            | Sempre                                         |
+| QG-05 | Testes unitários                 | `pnpm run test` (`vitest run`)                                                                                                                                                                            | Sempre                                         |
+| QG-06 | Build de produção                | `pnpm run build`                                                                                                                                                                                          | Sempre                                         |
+| QG-07 | Arranque + smoke test            | `pnpm start -H 0.0.0.0 -p $PORT` + `curl /api/health`                                                                                                                                                     | Antes de cada deploy                           |
+| QG-08 | Vulnerabilidades de dependências | `pnpm audit --audit-level=high`                                                                                                                                                                           | Sempre (falha em high/critical)                |
+| QG-09 | Consistência de peers            | `pnpm run peers` (`scripts/check-peer-deps.mjs`, allowlist nomeada; `pnpm peers check` é o seu input)                                                                                                     | Sempre                                         |
+| QG-10 | Política de build scripts        | `pnpm permissions` (nenhuma dependência com `build` permitido sem registo)                                                                                                                                | Sempre                                         |
+| QG-11 | Revisão de variáveis de ambiente | teste Vitest `contrato de configuração — .env.example ↔ schema`                                                                                                                                           | Sempre                                         |
+| QG-12 | Varrimento de segredos           | `gitleaks` em CI + verificação manual documentada                                                                                                                                                         | Sempre                                         |
+| QG-13 | Licenças de dependências         | `license-checker`/`pnpm licenses` (a adotar)                                                                                                                                                              | Antes de 1.º lançamento comercial              |
+| QG-14 | Testes de integração (BD)        | `pnpm run test:integration` (a criar na Fase 1, com PostgreSQL efémero)                                                                                                                                   | A partir da Fase 1                             |
+| QG-15 | Isolamento entre tenants         | suite dedicada de testes de autorização cross-tenant (ver `SECURITY.md` §4)                                                                                                                               | Antes de qualquer dado real de 2.ª organização |
+| QG-16 | Acessibilidade                   | `pnpm run test:a11y` (axe-core no projeto `dom`) + revisão manual de teclado/contraste + portão QG-21                                                                                                     | Desde a Fase 2, com UI real                    |
+| QG-17 | E2E                              | Playwright (a adicionar na Fase 1, quando existir jornada crítica)                                                                                                                                        | A partir da Fase 1                             |
+| QG-18 | Desempenho web                   | Lighthouse CI (orçamento a definir; sem browser neste ambiente)                                                                                                                                           | A partir da Fase 3                             |
+| QG-19 | Desempenho 3D                    | BCE por cena: tri-count, draw calls, upload GPU, FPS alvo, tempo até interatividade, memória — instrumento no editor (`PerformanceMonitor` + linha de estado) e protocolo em `docs/MANUAL-3D-TESTS.md` §6 | A partir da Fase 3, em dispositivo real        |
+| QG-20 | Orçamento de bundle de cliente   | `pnpm run budget` (`scripts/bundle-budget.mjs`, gzip medido na build)                                                                                                                                     | Desde a Fase 2                                 |
+| QG-21 | Contrato de tokens e contraste   | `vitest run src/app/design-tokens.test.ts` (pares WCAG + proibições de identidade)                                                                                                                        | Desde a Fase 2                                 |
+| QG-22 | Fronteira do motor 3D            | `vitest run src/three/boundary.test.ts` (importações runtime de `three` fora das portas nomeadas + `ssr: false` verificado nos hosts)                                                                     | Desde a Fase 3                                 |
 
 Comboio local completo: `pnpm run verify` = `peers` (QG-09) → `typecheck` (QG-02) → `lint`
 (QG-03) → `format:check` (QG-04) → `test` (QG-05, com QG-11 e QG-16 dentro) → `build` (QG-06) →
@@ -152,6 +153,12 @@ testes de DOM. Cada linha abaixo é um comando executado depois da última alter
 | QG-17         | E2E                                        | **PENDENTE**              | decisão registada: não adicionar Playwright sem browser disponível para o executar; protocolo manual em `docs/` (Fase 2) cobre o que os testes de DOM não cobrem                                                                                                                                                                                           |
 | QG-14 / QG-15 | BD e isolamento de tenants                 | **BLOQUEADO**             | sem persistência nesta fase — e a Fase 2 não simulou base de dados nem sessão autenticada                                                                                                                                                                                                                                                                  |
 
+**Execução em CI (GitHub Actions) da Fase 2.** O `push` de `93b7c0a` correu o workflow `CI` na
+branch `arena/5051ef25-velora`: run **40115219308**, resultado **sucesso** (48 s), verificado com
+`gh run list --branch arena/5051ef25-velora` — o mesmo conjunto de comandos de `pnpm run verify`,
+portanto os portões QG-02…QG-06, QG-09, QG-20 e QG-21 estão também aprovados fora desta máquina.
+https://github.com/valdimiroilidio3/velora-/actions/runs/40115219308
+
 ### 4.4 Contas da Fase 2
 
 - Portões **APROVADOS nesta execução**: 12 (QG-02, 03, 04, 05, 06, 08, 09, 11, 12, 20, 21 + QG-01 pelo `install --frozen-lockfile` do CI).
@@ -162,6 +169,53 @@ testes de DOM. Cada linha abaixo é um comando executado depois da última alter
 - Testes a correr: **153** em 14 ficheiros (Fase 0: 14 testes em 1 ficheiro). Ficheiros em `src/**`: **74** (6 na Fase 0), dos quais 13 são ficheiros de teste.
 
 ---
+
+### 4.5 Execução da Fase 3 — motor 3D, editor de modelo e fronteira de bundle (2026-10-24)
+
+Objeto novo medido em disco: **19 módulos** em `src/three/**` (11 de domínio puro + 8 de motor),
+**11 módulos** em `src/components/editor/**`, a rota `/app/modelo` e **16 ficheiros de teste
+novos**. Em `src/**` há agora 120 módulos `.ts`/`.tsx` (Fase 2: 74).
+
+| ID                    | Gate                                    | Resultado              | Observações medidas                                                                                                                                                                                                                                                    |
+| --------------------- | --------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| QG-01                 | `pnpm install --frozen-lockfile`        | **APROVADO**           | zero dependências adicionadas nesta fase: `three@0.186.1` e `@types/three@0.186.0` já vinham da Fase 2                                                                                                                                                                 |
+| QG-02                 | `pnpm run typecheck`                    | **APROVADO**           | `tsc --noEmit` com `strict` + `noUncheckedIndexedAccess`, sem `any` em `src/three`                                                                                                                                                                                     |
+| QG-03                 | `pnpm run lint`                         | **APROVADO**           | 0 erros, 0 warnings em todo o repositório; as regras `react-hooks` v7 não foram relajadas para o editor passar                                                                                                                                                         |
+| QG-04                 | `pnpm run format:check`                 | **APROVADO**           | `All matched files use Prettier code style!`                                                                                                                                                                                                                           |
+| QG-05                 | `pnpm run test`                         | **APROVADO**           | **30 ficheiros / 300 testes** (Fase 2: 14/153). Projeto `node`: 22 ficheiros / 233 testes; `dom`: 8 / 67                                                                                                                                                               |
+| QG-06                 | `pnpm run build`                        | **APROVADO**           | Next 16.4.3 (Turbopack), **13 rotas**, 12 pré-renderizadas, 0 erros; `/app/modelo` é dinâmica (`searchParams`)                                                                                                                                                         |
+| QG-08                 | `pnpm audit --audit-level=high`         | **APROVADO**           | sem vulnerabilidades conhecidas novas (nenhum pacote novo instalado)                                                                                                                                                                                                   |
+| QG-09                 | `pnpm run peers`                        | **APROVADO**           | `3 achado(s), 3 coberto(s) por exceção nomeada, 0 inesperados` — inalterado pela Fase 3                                                                                                                                                                                |
+| QG-16                 | `pnpm run test:a11y`                    | **APROVADO (parcial)** | axe-core sobre as superfícies da Fase 2 **e o editor de modelo** (árvore `role=tree`, `role=toolbar`, `role=application`, _toolbar_ de qualidade): 0 violações; sem browser/leitor de ecrã aqui                                                                        |
+| QG-20                 | `pnpm run budget`                       | **APROVADO**           | partilhado **129 kB**/150; total **401,1 kB**/520 (21 _chunks_); pior rota pré-renderizada **205,4 kB**; `three` **135,1 kB** em 1 _chunk_ diferido, `partilhado=false`, `rotas-iniciais=nenhuma`                                                                      |
+| QG-22                 | `vitest run src/three/boundary.test.ts` | **APROVADO**           | 5 asserções: 58 módulos de UI varridos, 2 portas nomeadas do motor, ambas atrás de `dynamic(…, { ssr: false })`, camada pura sem `three`                                                                                                                               |
+| QG-11 / QG-12 / QG-13 | contratos `.env`, segredos, licenças    | **sem alteração**      | nenhum pacote novo; nenhuma chave nova                                                                                                                                                                                                                                 |
+| QG-18                 | Lighthouse                              | **PENDENTE**           | continua sem browser neste sandbox                                                                                                                                                                                                                                     |
+| QG-19                 | Desempenho 3D                           | **PENDENTE**           | o instrumento existe e corre (`fps · ms · triângulos · draws · malhas` na linha de estado, com contadores reais do `renderer.info`); **as medições por dispositivo são manuais** — ver `docs/MANUAL-3D-TESTS.md` §6. Nenhuma alegação de FPS é feita neste repositório |
+| QG-17                 | E2E                                     | **PENDENTE**           | decisão de Fase 0/2 mantém-se                                                                                                                                                                                                                                          |
+| QG-14 / QG-15         | BD e isolamento                         | **BLOQUEADO**          | fora do âmbito declarado (Fase 3 não tem persistência)                                                                                                                                                                                                                 |
+
+Medição direta do primeiro _load_ da rota nova, porque o _budget_ só cobre rotas pré-renderizadas:
+`next start` + `<script>` do HTML de `/app/modelo` → 12 _scripts_, **214 kB gzip**, `three` = **0 kB**
+(o _chunk_ do motor é carregado à parte, quando há WebGL). Antes de mover `VIEW_PRESETS` para a
+camada pura eram 279,8 kB **com 54 kB de `three` no inicial** — ver §6.13.
+
+### 4.6 Contas da Fase 3
+
+- Portões **APROVADOS nesta execução**: 10 (QG-01…QG-06, QG-08, QG-09, QG-20, QG-22) + QG-16 parcial.
+- **PENDENTE**: 3 (QG-17, QG-18, QG-19) — todos por limitação de ambiente declarada, cada um com o
+  protocolo manual que o fecha.
+- **BLOQUEADO**: 2 (QG-14, QG-15).
+- **REPROVADOS**: 0. Nenhum portão foi desativado nem afrouxado: o QG-22 foi **adicionado** porque a
+  medição encontrou um problema que nenhum portão cobria.
+- Testes: **300** em 30 ficheiros (Fase 2: 153/14). Ficheiros em `src/**`: **109** (Fase 2: 74).
+- Evidência de CI desta fase: ver §4.7.
+
+### 4.7 Execução em CI da Fase 3
+
+A preencher **depois** do `push` desta fase: run do workflow `CI` na branch `arena/5051ef25-velora`,
+com o resultado lido por `gh run list`. Não há linha aqui enquanto o run não existir — um portão
+sem execução não é um portão aprovado.
 
 ## 5. O que um PR tem de mostrar
 
@@ -282,6 +336,23 @@ esteja definido antes do arranque do processo). Ficou: variável documentada no 
 
 ---
 
+### 6.13 Etiquetas de vista a arrastar 54 kB de `three` para o primeiro _load_
+
+Encontrado por medição, não por revisão. O `EditorToolbar` precisava dos rótulos das vistas de
+câmera e importou `VIEW_PRESETS` de `@/three/engine/camera-controller` — um módulo que importa
+`three` e o `OrbitControls`. Um `import` de _labels_ tornou o `three` dependência _eager_ da rota:
+o primeiro _load_ de `/app/modelo` medido no HTML servido passou de 214 kB para 279,8 kB, com
+54 kB vindos do motor.
+
+- **Correção:** as etiquetas passaram para `src/three/view-presets.ts` (camada pura, sem `three`) e
+  o motor reexporta-as, por isso nenhum chamador do motor mudou.
+- **Portão novo:** QG-22 (`src/three/boundary.test.ts`) varre `src/components/**` e `src/app/**` e
+  falha se algum módulo importar `three`, `three/*` ou `@/three/engine/**` em runtime — exceto as
+  duas portas nomeadas, cujo `dynamic(…, { ssr: false })` o mesmo teste confirma, dois graus acima.
+- **Lição registada:** sem browser e sem análise de _chunks_ do Turbopack por rota, a única forma de
+  apanhar dependências _eager_ indesejadas é ter um teste de grafo de importações. A medição do
+  HTML servido foi o que tornou o problema visível; o portão é o que o impede de voltar.
+
 ## 7. Limites do que foi verificado
 
 Para não deixar dúvidas sobre o que esta fase **não** prova:
@@ -299,5 +370,10 @@ Para não deixar dúvidas sobre o que esta fase **não** prova:
   cena escrito para ser auditável. Um navegador é o próximo verificador, não este documento.
 - **Fase 2:** a navegação em mobile (360 px) foi verificada por inspeção de CSS e pelas asserções de
   breakpoints do QG-21, não por medição em viewport real; nenhum _layout shift_ foi medido.
+- O **palco 3D nunca foi desenhado** neste ambiente: não há GPU, browser nem ecrã. Estão cobertos
+  por teste em Node/jsdom o modelo de dados, as regras de edição, o _snapping_, o _sync_
+  cena ⇄ documento, a libertação de recursos e os estados de erro; estão em
+  `docs/MANUAL-3D-TESTS.md` (R1…E7, com o protocolo de medição §6) tudo o que é pixel, sombra,
+  _touch_, FPS e memória de GPU. Nenhuma frase deste repositório afirma desempenho de render.
 - **Fase 2:** não há teste de persistência para além de `localStorage` (parse/serialize/corrupto),
   porque não há backend — as páginas de acesso e de preferências **não** simulam sessão nem base de dados.
